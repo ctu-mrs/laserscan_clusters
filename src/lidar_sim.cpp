@@ -9,11 +9,22 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/segmentation/extract_clusters.h>
-#include <cmath> // For sqrt function
+#include <cmath> 
 #include <random>
 
 class LaserScanCluster
 {
+    ros::NodeHandle nh_;
+    ros::Subscriber laser_scan_sub_;
+    ros::Publisher marker_array_pub_;
+    ros::Publisher fake_scan_pub_;
+    ros::Timer timer_;
+    std::string UAV_NAME_;
+    std::mt19937 rng_; // Random number generator
+    float robot_x_;
+    float robot_y_;
+    ros::Subscriber robot_position_sub_;
+
 public:
     LaserScanCluster(ros::NodeHandle &nh, const std::string &UAV_NAME)
         : nh_(nh), UAV_NAME_(UAV_NAME), rng_(std::random_device{}())
@@ -33,13 +44,13 @@ public:
         robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
 
     }
+    
     void robotPositionCallback(const visualization_msgs::Marker::ConstPtr &msg)
     {
- 
-            robot_x_ = msg->pose.position.x;
-            robot_y_ = msg->pose.position.y;
-     }
-private:
+       robot_x_ = msg->pose.position.x;
+       robot_y_ = msg->pose.position.y;
+    }
+
     void laserScanCallback(const sensor_msgs::LaserScan::ConstPtr &scan_msg)
     {
         // Convert LaserScan to PointCloud2
@@ -194,7 +205,7 @@ private:
     }
 
     void timerCallback(const ros::TimerEvent &)
-{
+    {
     // Create a fake LaserScan message
     sensor_msgs::LaserScan::Ptr fake_scan(new sensor_msgs::LaserScan);
     fake_scan->header.stamp = ros::Time::now();
@@ -211,10 +222,8 @@ private:
     fake_scan->ranges.resize(num_readings);
 
     // Robot's position
-    float robot_x = 0.0;
-    float robot_y = 0.0;
 
-    // Obstacles' positions and radius
+    // Obstacles' positions and radius, TODO: move to config
     std::vector<std::pair<float, float>> obstacles = {{-3.0,24.0}, {6.5,19.0},{-4.5,15.0},{-12.0,20.0},{7.0,30.0},{17.0,25.0},{-10.0,35.0},{0.0,0.0},{-4.0,-15.0},{-12.0,-20.0},{7.0,-30.0},{17.0,-25.0},{-10.0,-35.0}};
    float obstacle_radius = 0.5;
     // Random noise generator
@@ -273,33 +282,18 @@ private:
         }
 
         fake_scan->ranges[i] = noisy_distance;
-    }
+        }
 
     // Publish the fake LaserScan message
     fake_scan_pub_.publish(*fake_scan);
 
     // Call the laserScanCallback with the fake LaserScan message
     laserScanCallback(fake_scan);
-}
+    }
+    };
 
 
-    ros::NodeHandle nh_;
-    ros::Subscriber laser_scan_sub_;
-    ros::Publisher marker_array_pub_;
-    ros::Publisher fake_scan_pub_;
-    ros::Timer timer_;
-    std::string UAV_NAME_;
-    std::mt19937 rng_; // Random number generator
-    float robot_x_;
-    float robot_y_;
-    ros::Subscriber robot_position_sub_;
-
-};
-
-
-int main(int argc, char **argv)
-{
-
+int main(int argc, char **argv){
 
     // Retrieve the value of the "UAV_NAME" environment variable
     const char *UAV_NAMEEnv = std::getenv("UAV_NAME");
@@ -308,17 +302,14 @@ int main(int argc, char **argv)
         ROS_ERROR("Environment variable 'UAV_NAME' not set.");
         return 1; // Exit with an error code
     }
-
+    
     // Convert UAV_NAME to string
     std::string UAV_NAME(UAV_NAMEEnv);
-
+    
     // Initialize the ROS node with the obtained value
     ros::init(argc, argv, "laser_scan_clustering_" + UAV_NAME);
     ros::NodeHandle nh;
-
     LaserScanCluster laser_scan_cluster(nh, UAV_NAME);
-
-
     ros::spin();
     return 0;
 }
