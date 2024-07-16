@@ -1,0 +1,9 @@
+<launch>
+  
+  <arg name="UAV_NAME" default="$(env UAV_NAME)"/>
+ 
+
+  <group ns="lidar_simulator">
+    <node name="lidar_simulator$(arg UAV_NAME)" pkg="lidar_simulator" type="lidar_sim" output="screen"/>
+  </group>
+</launch>
