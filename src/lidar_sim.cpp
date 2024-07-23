@@ -69,7 +69,7 @@ public:
         vox.filter(*cloud_filtered);
 
         // Set the maximum allowed distance
-        double max_distance = 8.0; // Set your desired maximum distance
+        double max_distance = 12.0; // Set your desired maximum distance
 
         // Create a filtered point cloud based on distance
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_distance(new pcl::PointCloud<pcl::PointXYZ>);
@@ -97,7 +97,8 @@ public:
 
         // Create MarkerArray
         visualization_msgs::MarkerArray marker_array;
-
+        
+        //ros::Publisher marker_array_pub_;
         // Iterate through clusters
         for (std::size_t i = 0; i < cluster_indices.size(); ++i)
         {
@@ -212,11 +213,11 @@ public:
     fake_scan->header.frame_id = UAV_NAME_ + "/world_origin";
     fake_scan->angle_min = 0.0;
     fake_scan->angle_max = 6.28; // 2 * pi
-    fake_scan->angle_increment = 0.01;
+    fake_scan->angle_increment = 0.225/180*3.1415;
     fake_scan->time_increment = 0.0;
     fake_scan->scan_time = 0.1;
     fake_scan->range_min = 0.0;
-    fake_scan->range_max = 10.0; // Set your desired max range
+    fake_scan->range_max = 16.0; // Set your desired max range
 
     int num_readings = static_cast<int>((fake_scan->angle_max - fake_scan->angle_min) / fake_scan->angle_increment);
     fake_scan->ranges.resize(num_readings);
@@ -224,8 +225,9 @@ public:
     // Robot's position
 
     // Obstacles' positions and radius, TODO: move to config
-    std::vector<std::pair<float, float>> obstacles = {{-3.0,24.0}, {6.5,19.0},{-4.5,15.0},{-12.0,20.0},{7.0,30.0},{17.0,25.0},{-10.0,35.0},{0.0,0.0},{-4.0,-15.0},{-12.0,-20.0},{7.0,-30.0},{17.0,-25.0},{-10.0,-35.0}};
-   float obstacle_radius = 0.5;
+//    std::vector<std::pair<float, float>> obstacles = {{-3.0,24.0}, {6.5,19.0},{-4.5,15.0},{-12.0,20.0},{7.0,30.0},{17.0,25.0},{-10.0,35.0},{0.0,0.0},{-4.0,-15.0},{-12.0,-20.0},{7.0,-30.0},{17.0,-25.0},{-10.0,-35.0}};
+    float obstacle_radius = 0.1;
+    std::vector<std::pair<float, float>> obstacles = {{-6.0,0.5},{0.0,0.0},{6.0,-1.0},{0.0,-5.0},{6.0,-7.0},{-5.0,-9.0}};
     // Random noise generator
     std::normal_distribution<float> noise_distribution(0.0, 0.1); // Mean 0, Stddev 0.1
 
