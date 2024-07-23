@@ -1,9 +1,10 @@
 <launch>
-  
-  <arg name="UAV_NAME" default="$(env UAV_NAME)"/>
- 
 
+  <arg name="UAV_NAME" default="$(env UAV_NAME)"/>
   <group ns="lidar_simulator">
     <node name="lidar_simulator$(arg UAV_NAME)" pkg="lidar_simulator" type="lidar_sim" output="screen"/>
+      <rosparam param="obstacles_size"> 0.2 </rosparam>
+      <rosparam param="obstacles_x"> [-1.0,10.0] </rosparam>
+      <rosparam param="obstacles_y"> [0.0,-5.5] </rosparam>
   </group>
 </launch>

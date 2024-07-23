@@ -7,6 +7,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/filters/voxel_grid.h>
+#include <mrs_lib/param_loader.h>
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <cmath> 
@@ -21,11 +22,16 @@ class LaserScanCluster
     ros::Timer timer_;
     std::string UAV_NAME_;
     std::mt19937 rng_; // Random number generator
-    float robot_x_;
-    float robot_y_;
+    double robot_x_;
+    double robot_y_;
     ros::Subscriber robot_position_sub_;
-
+    
+private:
+    std::vector<double> _obstacles_x, _obstacles_y;
+    double _obstacles_size;
+    
 public:
+
     LaserScanCluster(ros::NodeHandle &nh, const std::string &UAV_NAME)
         : nh_(nh), UAV_NAME_(UAV_NAME), rng_(std::random_device{}())
     {
@@ -43,8 +49,13 @@ public:
         
         robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
 
-    }
     
+        mrs_lib::ParamLoader param_loader(nh, "LaserScanCluster");
+        param_loader.loadParam("obstacles_size", _obstacles_size, _obstacles_size);
+        param_loader.loadParam("obstacles_x", _obstacles_x, _obstacles_x);
+        param_loader.loadParam("obstacles_y", _obstacles_y, _obstacles_y);
+
+    }
     void robotPositionCallback(const visualization_msgs::Marker::ConstPtr &msg)
     {
        robot_x_ = msg->pose.position.x;
@@ -165,7 +176,7 @@ public:
         marker.scale.x = marker.scale.y = marker.scale.z = 0.05; // Point size
 
         // Fixed colors for each cluster (you can customize these)
-        std::vector<std::array<float, 3>> fixed_colors = {
+        std::vector<std::array<double, 3>> fixed_colors = {
             {1.0, 0.0, 0.0}, // Red
             {0.0, 1.0, 0.0}, // Green
             {0.0, 0.0, 1.0}, // Blue
@@ -176,7 +187,7 @@ public:
         };
 
         // Select a color based on cluster_id
-        std::array<float, 3> cluster_color;
+        std::array<double, 3> cluster_color;
         if (cluster_id < fixed_colors.size())
         {
             cluster_color = fixed_colors[cluster_id];
@@ -226,53 +237,57 @@ public:
 
     // Obstacles' positions and radius, TODO: move to config
 //    std::vector<std::pair<float, float>> obstacles = {{-3.0,24.0}, {6.5,19.0},{-4.5,15.0},{-12.0,20.0},{7.0,30.0},{17.0,25.0},{-10.0,35.0},{0.0,0.0},{-4.0,-15.0},{-12.0,-20.0},{7.0,-30.0},{17.0,-25.0},{-10.0,-35.0}};
-    float obstacle_radius = 0.1;
-    std::vector<std::pair<float, float>> obstacles = {{-6.0,0.5},{0.0,0.0},{6.0,-1.0},{0.0,-5.0},{6.0,-7.0},{-5.0,-9.0}};
-    // Random noise generator
-    std::normal_distribution<float> noise_distribution(0.0, 0.1); // Mean 0, Stddev 0.1
+    double obstacle_radius = _obstacles_size;
+   // std::vector<std::pair<float, float>> obstacles = {{-8.0,0.5},{0.0,0.0},{8.0,-1.0},{-0.5,-7.0},{7.0,-7.0},{-3.0,-9.0}};
+    std::vector<std::pair<double, double>> obstacles;
+   for (size_t i = 0; i < _obstacles_x.size(); ++i) {
+        obstacles.emplace_back(_obstacles_x[i], _obstacles_y[i]);
+    }
+   // Random noise generator
+    std::normal_distribution<double> noise_distribution(0.0, 0.1); // Mean 0, Stddev 0.1
 
     // Fill ranges with simulated data
     for (int i = 0; i < num_readings; ++i)
     {
         // Calculate the angle of the current reading
-        float angle = fake_scan->angle_min + i * fake_scan->angle_increment;
+        double angle = fake_scan->angle_min + i * fake_scan->angle_increment;
 
         // Initialize the minimum distance to the maximum range
-        float min_distance = fake_scan->range_max;
+        double min_distance = fake_scan->range_max;
 
         // Check distance to each obstacle
         for (const auto &obstacle : obstacles)
         {
-            float obstacle_x = obstacle.first;
-            float obstacle_y = obstacle.second;
+            double obstacle_x = obstacle.first;
+            double obstacle_y = obstacle.second;
 
             // Calculate the direction vector
-            float direction_x = cos(angle);
-            float direction_y = sin(angle);
+            double direction_x = cos(angle);
+            double direction_y = sin(angle);
 
             // Calculate the vector from the robot to the obstacle
-            float dx = obstacle_x - robot_x_;
-            float dy = obstacle_y - robot_y_;
+            double dx = obstacle_x - robot_x_;
+            double dy = obstacle_y - robot_y_;
 
             // Project the vector onto the direction of the LaserScan
-            float projection = direction_x * dx + direction_y * dy;
+            double projection = direction_x * dx + direction_y * dy;
             if (projection > 0)
             {
                 // Calculate the point on the obstacle's perimeter closest to the laser ray
-                float closest_x = robot_x_ + projection * direction_x;
-                float closest_y = robot_y_ + projection * direction_y;
-                float dist_to_obstacle_center = sqrt((closest_x - obstacle_x) * (closest_x - obstacle_x) + 
+                double closest_x = robot_x_ + projection * direction_x;
+                double closest_y = robot_y_ + projection * direction_y;
+                double dist_to_obstacle_center = sqrt((closest_x - obstacle_x) * (closest_x - obstacle_x) + 
                                                       (closest_y - obstacle_y) * (closest_y - obstacle_y));
                 if (dist_to_obstacle_center <= obstacle_radius)
                 {
-                    float dist_to_surface = projection - sqrt(obstacle_radius * obstacle_radius - dist_to_obstacle_center * dist_to_obstacle_center);
+                    double dist_to_surface = projection - sqrt(obstacle_radius * obstacle_radius - dist_to_obstacle_center * dist_to_obstacle_center);
                     min_distance = std::min(min_distance, dist_to_surface);
                 }
             }
         }
 
         // Add noise to the distance value
-        float noisy_distance = min_distance + noise_distribution(rng_);
+        double noisy_distance = min_distance + noise_distribution(rng_);
         // Ensure the range is within valid bounds
         if (noisy_distance < fake_scan->range_min)
         {
