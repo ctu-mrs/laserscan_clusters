@@ -4,7 +4,8 @@
   <group ns="lidar_simulator">
     <node name="lidar_simulator$(arg UAV_NAME)" pkg="lidar_simulator" type="lidar_sim" output="screen"/>
       <rosparam param="obstacles_size"> 0.2 </rosparam>
-      <rosparam param="obstacles_x"> [-1.0,10.0] </rosparam>
-      <rosparam param="obstacles_y"> [0.0,-5.5] </rosparam>
+      <rosparam param="obstacles_x"> [0.0,5.0,-10.0,5.0,-7.5,3.0,-5.0,-3.0,4.0] </rosparam>
+      <rosparam param="obstacles_y"> [-10.0,-27.0,-25.0,-15.0,-7.5,-22.0,-20.0,-28.0,-32.0] </rosparam>
+      
   </group>
 </launch>

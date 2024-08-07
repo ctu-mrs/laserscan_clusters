@@ -49,6 +49,9 @@ public:
         
         robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
 
+        // Write here topic where real data is published
+        //laser_scan_sub_     = nh_.subscribe("/" + UAV_NAME + "/scan", 1, &LaserScanCluster::laserScanCallback, this);
+
     
         mrs_lib::ParamLoader param_loader(nh, "LaserScanCluster");
         param_loader.loadParam("obstacles_size", _obstacles_size, _obstacles_size);
@@ -57,6 +60,12 @@ public:
 
     }
     void robotPositionCallback(const visualization_msgs::Marker::ConstPtr &msg)
+    {
+       robot_x_ = msg->pose.position.x;
+       robot_y_ = msg->pose.position.y;
+    }
+
+    void laserCallback(const visualization_msgs::Marker::ConstPtr &msg)
     {
        robot_x_ = msg->pose.position.x;
        robot_y_ = msg->pose.position.y;
@@ -92,7 +101,7 @@ public:
                 cloud_filtered_distance->points.push_back(point);
             }
         }
-
+        
         // Apply Euclidean Clustering to the filtered point cloud
         pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
         tree->setInputCloud(cloud_filtered_distance);
@@ -306,6 +315,11 @@ public:
 
     // Call the laserScanCallback with the fake LaserScan message
     laserScanCallback(fake_scan);
+    
+
+
+
+
     }
     };
 
