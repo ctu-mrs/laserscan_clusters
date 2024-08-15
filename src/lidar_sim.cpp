@@ -253,7 +253,7 @@ public:
         obstacles.emplace_back(_obstacles_x[i], _obstacles_y[i]);
     }
    // Random noise generator
-    std::normal_distribution<double> noise_distribution(0.0, 0.1); // Mean 0, Stddev 0.1
+    std::normal_distribution<double> noise_distribution(0.0, 0.3); // Mean 0, Stddev 0.1
 
     // Fill ranges with simulated data
     for (int i = 0; i < num_readings; ++i)
