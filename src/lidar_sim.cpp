@@ -108,8 +108,8 @@ public:
 
         std::vector<pcl::PointIndices> cluster_indices;
         pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-        ec.setClusterTolerance(0.5); // Adjust based on your environment
-        ec.setMinClusterSize(10);
+        ec.setClusterTolerance(0.05); // Adjust based on your environment
+        ec.setMinClusterSize(5);
         ec.setMaxClusterSize(10000);
         ec.setSearchMethod(tree);
         ec.setInputCloud(cloud_filtered_distance);
