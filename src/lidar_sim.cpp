@@ -36,21 +36,21 @@ public:
         : nh_(nh), UAV_NAME_(UAV_NAME), rng_(std::random_device{}())
     {
         // Set up LaserScan subscriber
-        laser_scan_sub_ = nh_.subscribe("/scan_" + UAV_NAME, 1, &LaserScanCluster::laserScanCallback, this);
+       // laser_scan_sub_ = nh_.subscribe("/scan_" + UAV_NAME, 1, &LaserScanCluster::laserScanCallback, this);
 
         // Set up MarkerArray publisher
         marker_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/clusters_" + UAV_NAME, 1);
 
         // Set up fake LaserScan publisher
-        fake_scan_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_" + UAV_NAME, 1);
+        //fake_scan_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_" + UAV_NAME, 1);
 
         // Set up a timer to publish fake LaserScan data and call laserScanCallback at 10 Hz
-        timer_ = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
+        // timer_ = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
         
         robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
 
         // Write here topic where real data is published
-        //laser_scan_sub_     = nh_.subscribe("/" + UAV_NAME + "/scan", 1, &LaserScanCluster::laserScanCallback, this);
+        laser_scan_sub_     = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this);
 
     
         mrs_lib::ParamLoader param_loader(nh, "LaserScanCluster");
@@ -108,8 +108,8 @@ public:
 
         std::vector<pcl::PointIndices> cluster_indices;
         pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-        ec.setClusterTolerance(0.3); // Adjust based on your environment
-        ec.setMinClusterSize(6);
+        ec.setClusterTolerance(0.5); // Adjust based on your environment
+        ec.setMinClusterSize(10);
         ec.setMaxClusterSize(10000);
         ec.setSearchMethod(tree);
         ec.setInputCloud(cloud_filtered_distance);
@@ -148,6 +148,7 @@ public:
         // Reserve space for points
         cloud->points.resize(scan_msg->ranges.size());
 
+        int counter = 0;
         // Populate PointCloudXYZ with points from LaserScan
         for (size_t i = 0; i < scan_msg->ranges.size(); ++i)
         {
@@ -158,11 +159,16 @@ public:
             double x = scan_msg->ranges[i] * cos(angle);
             double y = scan_msg->ranges[i] * sin(angle);
 
-            // Set the point in the PointCloudXYZ
-            cloud->points[i].x = x;
-            cloud->points[i].y = y;
-            cloud->points[i].z = 0.0; // Assuming 2D laser scan, so z is set to 0
+            if (isfinite(x) && isfinite(y)) { 
+              // Set the point in the PointCloudXYZ
+              cloud->points[counter].x = x;
+              cloud->points[counter].y = y;
+              cloud->points[counter].z = 0.0; // Assuming 2D laser scan, so z is set to 0
+              counter++;
+            }
         }
+
+        cloud->points.resize(counter);
 
         // Convert PointCloudXYZ to PointCloud2
         pcl::toROSMsg(*cloud, *cloud_msg);
@@ -315,7 +321,6 @@ public:
 
     // Call the laserScanCallback with the fake LaserScan message
     laserScanCallback(fake_scan);
-    
 
 
 
