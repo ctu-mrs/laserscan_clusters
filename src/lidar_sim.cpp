@@ -22,8 +22,12 @@ class LaserScanCluster
     ros::Timer timer_;
     std::string UAV_NAME_;
     std::mt19937 rng_; // Random number generator
-    double robot_x_;
-    double robot_y_;
+    double robot_x_ = 0.0;
+    double robot_y_ = 0.0;
+    double _cluster_tolerance_;
+    int _cluster_min_size_;
+    int _cluster_max_size_;
+    bool _simulation_ = false;
     ros::Subscriber robot_position_sub_;
     
 private:
@@ -57,12 +61,18 @@ public:
         param_loader.loadParam("obstacles_size", _obstacles_size, _obstacles_size);
         param_loader.loadParam("obstacles_x", _obstacles_x, _obstacles_x);
         param_loader.loadParam("obstacles_y", _obstacles_y, _obstacles_y);
+        param_loader.loadParam("clustering/tolerance", _cluster_tolerance_);
+        param_loader.loadParam("clustering/min_size", _cluster_min_size_);
+        param_loader.loadParam("clustering/max_size", _cluster_max_size_);
+        param_loader.loadParam("simulation", _simulation_);
 
     }
     void robotPositionCallback(const visualization_msgs::Marker::ConstPtr &msg)
     {
+      if (_simulation_) { 
        robot_x_ = msg->pose.position.x;
        robot_y_ = msg->pose.position.y;
+      }
     }
 
     void laserCallback(const visualization_msgs::Marker::ConstPtr &msg)
@@ -108,9 +118,9 @@ public:
 
         std::vector<pcl::PointIndices> cluster_indices;
         pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-        ec.setClusterTolerance(0.05); // Adjust based on your environment
-        ec.setMinClusterSize(5);
-        ec.setMaxClusterSize(10000);
+        ec.setClusterTolerance(_cluster_tolerance_); // Adjust based on your environment
+        ec.setMinClusterSize(_cluster_min_size_);
+        ec.setMaxClusterSize(_cluster_max_size_);
         ec.setSearchMethod(tree);
         ec.setInputCloud(cloud_filtered_distance);
         ec.extract(cluster_indices);
@@ -152,6 +162,11 @@ public:
         // Populate PointCloudXYZ with points from LaserScan
         for (size_t i = 0; i < scan_msg->ranges.size(); ++i)
         {
+
+            if (scan_msg->ranges[i] < 0.4) { 
+              continue;
+            }
+
             // Calculate the angle of the current point
             double angle = scan_msg->angle_min + i * scan_msg->angle_increment;
 
@@ -188,7 +203,7 @@ public:
         marker.type = visualization_msgs::Marker::POINTS;
         marker.action = visualization_msgs::Marker::ADD;
         marker.pose.orientation.w = 1.0;
-        marker.scale.x = marker.scale.y = marker.scale.z = 0.05; // Point size
+        marker.scale.x = marker.scale.y = marker.scale.z = 0.15; // Point size
 
         // Fixed colors for each cluster (you can customize these)
         std::vector<std::array<double, 3>> fixed_colors = {
