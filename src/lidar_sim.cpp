@@ -29,7 +29,7 @@ class LaserScanCluster
     int _cluster_max_size_;
     bool _simulation_ = false;
     ros::Subscriber robot_position_sub_;
-    
+    ros::Time last_time_received_msg_; 
 private:
     std::vector<double> _obstacles_x, _obstacles_y;
     double _obstacles_size;
@@ -41,7 +41,7 @@ public:
     {
         // Set up LaserScan subscriber
        // laser_scan_sub_ = nh_.subscribe("/scan_" + UAV_NAME, 1, &LaserScanCluster::laserScanCallback, this);
-
+        
         // Set up MarkerArray publisher
         marker_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/clusters_" + UAV_NAME, 1);
 
@@ -55,6 +55,9 @@ public:
 
         // Write here topic where real data is published
         laser_scan_sub_     = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this);
+        if ((ros::Time::now()-last_time_received_msg_).toSec()> 3.0) {
+        ROS_WARN("[Lidar]: Data not received since 3 seconds" );
+        } 
 
     
         mrs_lib::ParamLoader param_loader(nh, "LaserScanCluster");
@@ -86,7 +89,7 @@ public:
         // Convert LaserScan to PointCloud2
         sensor_msgs::PointCloud2::Ptr cloud_msg(new sensor_msgs::PointCloud2);
         convertLaserScanToPointCloud2(scan_msg, cloud_msg);
-
+        last_time_received_msg_ =  ros::Time::now(); 
         // Convert PointCloud2 to pcl PointCloud
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::fromROSMsg(*cloud_msg, *cloud);
@@ -147,6 +150,7 @@ public:
 
         // Publish MarkerArray
         marker_array_pub_.publish(marker_array);
+
     }
 
     void convertLaserScanToPointCloud2(const sensor_msgs::LaserScan::ConstPtr &scan_msg,
@@ -361,6 +365,7 @@ int main(int argc, char **argv){
     ros::init(argc, argv, "laser_scan_clustering_" + UAV_NAME);
     ros::NodeHandle nh;
     LaserScanCluster laser_scan_cluster(nh, UAV_NAME);
+    
     ros::spin();
     return 0;
 }
