@@ -40,24 +40,25 @@ public:
         : nh_(nh), UAV_NAME_(UAV_NAME), rng_(std::random_device{}())
     {
         // Set up LaserScan subscriber
-       // laser_scan_sub_ = nh_.subscribe("/scan_" + UAV_NAME, 1, &LaserScanCluster::laserScanCallback, this);
+        laser_scan_sub_ = nh_.subscribe("/scan_" + UAV_NAME, 1, &LaserScanCluster::laserScanCallback, this);
         
         // Set up MarkerArray publisher
         marker_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/clusters_" + UAV_NAME, 1);
 
         // Set up fake LaserScan publisher
-        //fake_scan_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_" + UAV_NAME, 1);
+        fake_scan_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/scan_" + UAV_NAME, 1);
 
         // Set up a timer to publish fake LaserScan data and call laserScanCallback at 10 Hz
-        // timer_ = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
+        timer_ = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
         
         robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
 
         // Write here topic where real data is published
-        laser_scan_sub_     = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this);
-        if ((ros::Time::now()-last_time_received_msg_).toSec()> 3.0) {
-        ROS_WARN("[Lidar]: Data not received since 3 seconds" );
-        } 
+
+        /* laser_scan_sub_     = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this); */
+        /* if ((ros::Time::now()-last_time_received_msg_).toSec()> 3.0) { */
+        /* ROS_WARN("[Lidar]: Data not received since 3 seconds" ); */
+        /* } */ 
 
     
         mrs_lib::ParamLoader param_loader(nh, "LaserScanCluster");
