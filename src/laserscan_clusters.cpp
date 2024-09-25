@@ -13,10 +13,11 @@
 #include <cmath>
 #include <random>
 
+/*LaserScanCluster Class //{ */
 class LaserScanCluster {
   ros::NodeHandle nh_;
   ros::Subscriber laser_scan_sub_;
-  ros::Publisher  marker_array_pub_;
+  ros::Publisher  clusters_pub_;
   ros::Publisher  fake_scan_pub_;
   ros::Timer      timer_;
   std::string     UAV_NAME_;
@@ -35,31 +36,22 @@ private:
   double              _obstacles_size;
 
 public:
+
+/*LaserScanCluster init//{ */
   LaserScanCluster(ros::NodeHandle &nh, const std::string &UAV_NAME) : nh_(nh), UAV_NAME_(UAV_NAME), rng_(std::random_device{}()) {
-
-    // Set up MarkerArray publisher
-    marker_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_" , 1);
-
-    // Set up fake LaserScan publisher
-    fake_scan_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan_" , 1);
-
-    // Set up a timer to publish fake LaserScan data and call laserScanCallback at 10 Hz
+    clusters_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_", 1);
+    fake_scan_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan_", 1);
     timer_ = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
-
     robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
-
-    // Write here topic where real data is published
     if (_simulation_) {
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan_", 1, &LaserScanCluster::laserScanCallback, this);
     } else {
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this);
-
     }
 
-    /* if ((ros::Time::now()-last_time_received_msg_).toSec()> 3.0) { */
-    /* ROS_WARN("[Lidar]: Data not received since 3 seconds" ); */
-    /* } */
-
+    if ((ros::Time::now()-last_time_received_msg_).toSec()> 3.0) {
+    ROS_WARN("[Lidar]: Data not received since 3 seconds" );
+    }
 
     mrs_lib::ParamLoader param_loader(nh, "LaserScanCluster");
     param_loader.loadParam("obstacles_size", _obstacles_size, _obstacles_size);
@@ -70,18 +62,18 @@ public:
     param_loader.loadParam("clustering/max_size", _cluster_max_size_);
     param_loader.loadParam("simulation", _simulation_);
   }
+  //}
+  
+ /* robotPositionCallback //{ */
   void robotPositionCallback(const visualization_msgs::Marker::ConstPtr &msg) {
     if (_simulation_) {
       robot_x_ = msg->pose.position.x;
       robot_y_ = msg->pose.position.y;
     }
   }
-
-  void laserCallback(const visualization_msgs::Marker::ConstPtr &msg) {
-    robot_x_ = msg->pose.position.x;
-    robot_y_ = msg->pose.position.y;
-  }
-
+  //}
+  
+/*void laserScanCallback //{ */
   void laserScanCallback(const sensor_msgs::LaserScan::ConstPtr &scan_msg) {
     // Convert LaserScan to PointCloud2
     sensor_msgs::PointCloud2::Ptr cloud_msg(new sensor_msgs::PointCloud2);
@@ -90,15 +82,13 @@ public:
     // Convert PointCloud2 to pcl PointCloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::fromROSMsg(*cloud_msg, *cloud);
-
     // Apply Voxel Grid Downsampling
     pcl::VoxelGrid<pcl::PointXYZ> vox;
     vox.setInputCloud(cloud);
     vox.setLeafSize(0.03, 0.03, 0.03);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
     vox.filter(*cloud_filtered);
-
-    // Set the maximum allowed distance
+    // Set the maximum allowed distance FIXME: to add in param_loader
     double max_distance = 12.0;  // Set your desired maximum distance
 
     // Create a filtered point cloud based on distance
@@ -124,9 +114,8 @@ public:
     ec.extract(cluster_indices);
 
     // Create MarkerArray
-    visualization_msgs::MarkerArray marker_array;
+    visualization_msgs::MarkerArray clusters;
 
-    // ros::Publisher marker_array_pub_;
     // Iterate through clusters
     for (std::size_t i = 0; i < cluster_indices.size(); ++i) {
       pcl::PointCloud<pcl::PointXYZ>::Ptr cluster(new pcl::PointCloud<pcl::PointXYZ>);
@@ -138,13 +127,15 @@ public:
       visualization_msgs::Marker marker = createClusterMarker(cluster, scan_msg->header, i);
 
       // Append Marker to MarkerArray
-      marker_array.markers.push_back(marker);
+      clusters.markers.push_back(marker);
     }
 
     // Publish MarkerArray
-    marker_array_pub_.publish(marker_array);
+    clusters_pub_.publish(clusters);
   }
+//}
 
+/*void convertLaserScanToPointCloud2 //{ */
   void convertLaserScanToPointCloud2(const sensor_msgs::LaserScan::ConstPtr &scan_msg, sensor_msgs::PointCloud2::Ptr &cloud_msg) {
     // Create a PointCloudXYZ
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -186,7 +177,9 @@ public:
     cloud_msg->height = 1;
     cloud_msg->width  = cloud->points.size();
   }
+//}
 
+/* createClusterMarker //{ */
   visualization_msgs::Marker createClusterMarker(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cluster, const std_msgs::Header &header, std::size_t cluster_id) {
     visualization_msgs::Marker marker;
     marker.header             = header;
@@ -232,7 +225,9 @@ public:
 
     return marker;
   }
+//}
 
+/*void timerCallback //{ */
   void timerCallback(const ros::TimerEvent &) {
     // Create a fake LaserScan message
     sensor_msgs::LaserScan::Ptr fake_scan(new sensor_msgs::LaserScan);
@@ -316,9 +311,13 @@ public:
     // Call the laserScanCallback with the fake LaserScan message
     laserScanCallback(fake_scan);
   }
+  //}
+  
 };
+//}
 
 
+/*main() //{ */
 int main(int argc, char **argv) {
 
   // Retrieve the value of the "UAV_NAME" environment variable
