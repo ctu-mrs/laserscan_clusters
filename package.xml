@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>lidar_simulator</name>
+  <name>laserscan_clusters</name>
   <version>1.0.0</version>
   <description>lidar_simulator</description>
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(lidar_simulator)
+project(laserscan_clusters)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,7 +21,7 @@ set(CATKIN_DEPENDENCIES
   )
 
 set(EXECUTABLES
-  lidar_sim
+  laserscan_clusters
   )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -54,16 +54,16 @@ include_directories(
   ${LIBGBM_INCLUDE_DIRS}
   )
 
-add_executable(lidar_sim
-  src/lidar_sim.cpp
+add_executable(laserscan_clusters
+  src/laserscan_clusters.cpp
   )
 
-add_dependencies(lidar_sim
+add_dependencies(laserscan_clusters
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   )
 
-target_link_libraries(lidar_sim
+target_link_libraries(laserscan_clusters
   ${catkin_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   )
