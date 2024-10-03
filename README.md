@@ -1,2 +1,2 @@
 # laserscan_clusters
-Simple tool to work with klaxalk's multi-uav simulator. It produces approximate 2D pose estimation of surrounding circular obstacles by simulating the use of a laserscan.
+Simple tool to simulate lidar or acquire data from lidar (it can be set thtough simulation flag) and obtain different clusters from different obstacles in the environment.
