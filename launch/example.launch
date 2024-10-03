@@ -4,8 +4,8 @@
   <group ns="laserscan_clusters">
     <node name="laserscan_clusters$(arg UAV_NAME)" pkg="laserscan_clusters" type="laserscan_clusters" output="screen"/>
       <rosparam param="obstacles_size"> 0.25 </rosparam>
-      <rosparam param="obstacles_x"> [-5.0,0.0,5.0,-10.0,5.0,-7.5,3.0,-5.0,-3.0,4.0,10.0] </rosparam>
-      <rosparam param="obstacles_y"> [-14.0,-10.0,-27.0,-25.0,-15.0,-7.5,-22.0,-20.0,-28.0,-32.0,-20.0] </rosparam>
+      <rosparam param="obstacles_x"> [0.0,-10.0,-2.0,-5.0,0.0,5.0,-10.0,5.0,-7.5,3.0,-7.0,-3.0,4.0,10.0] </rosparam>
+      <rosparam param="obstacles_y"> [-15.0,-15.0,-21.0,-14.0,-10.0,-27.0,-25.0,-15.0,-7.5,-22.0,-20.0,-28.0,-32.0,-20.0] </rosparam>
       <rosparam param="clustering/tolerance"> 1.0 </rosparam>
       <rosparam param="clustering/min_size"> 2 </rosparam>
       <rosparam param="clustering/max_size"> 100 </rosparam>
