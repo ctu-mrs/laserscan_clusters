@@ -31,12 +31,9 @@ class LaserScanCluster {
   ros::Subscriber robot_position_sub_;
   ros::Time       last_time_received_msg_;
 
-private:
+public:
   std::vector<double> _obstacles_x, _obstacles_y;
   double              _obstacles_size;
-
-public:
-
 /*LaserScanCluster init//{ */
   LaserScanCluster(ros::NodeHandle &nh, const std::string &UAV_NAME) : nh_(nh), UAV_NAME_(UAV_NAME), rng_(std::random_device{}()) {
     clusters_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_", 1);
@@ -122,14 +119,11 @@ public:
       for (std::size_t j = 0; j < cluster_indices[i].indices.size(); ++j) {
         cluster->points.push_back(cloud_filtered_distance->points[cluster_indices[i].indices[j]]);
       }
-
       // Create Marker for the cluster
       visualization_msgs::Marker marker = createClusterMarker(cluster, scan_msg->header, i);
-
       // Append Marker to MarkerArray
       clusters.markers.push_back(marker);
     }
-
     // Publish MarkerArray
     clusters_pub_.publish(clusters);
   }
@@ -244,13 +238,7 @@ public:
     int num_readings = static_cast<int>((fake_scan->angle_max - fake_scan->angle_min) / fake_scan->angle_increment);
     fake_scan->ranges.resize(num_readings);
 
-    // Robot's position
-
-    // Obstacles' positions and radius, TODO: move to config
-    //    std::vector<std::pair<float, float>> obstacles = {{-3.0,24.0},
-    //    {6.5,19.0},{-4.5,15.0},{-12.0,20.0},{7.0,30.0},{17.0,25.0},{-10.0,35.0},{0.0,0.0},{-4.0,-15.0},{-12.0,-20.0},{7.0,-30.0},{17.0,-25.0},{-10.0,-35.0}};
     double obstacle_radius = _obstacles_size;
-    // std::vector<std::pair<float, float>> obstacles = {{-8.0,0.5},{0.0,0.0},{8.0,-1.0},{-0.5,-7.0},{7.0,-7.0},{-3.0,-9.0}};
     std::vector<std::pair<double, double>> obstacles;
     for (size_t i = 0; i < _obstacles_x.size(); ++i) {
       obstacles.emplace_back(_obstacles_x[i], _obstacles_y[i]);
