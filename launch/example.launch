@@ -9,7 +9,7 @@
       <rosparam param="clustering/tolerance"> 1.0 </rosparam>
       <rosparam param="clustering/min_size"> 2 </rosparam>
       <rosparam param="clustering/max_size"> 100 </rosparam>
-      <rosparam param="simulation"> true </rosparam>
+      <rosparam param="simulation"> false </rosparam>
       
   </group>
 </launch>
