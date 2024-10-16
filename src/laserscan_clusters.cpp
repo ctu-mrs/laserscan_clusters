@@ -48,7 +48,7 @@ public:
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan_", 1, &LaserScanCluster::laserScanCallback, this);
     } else {
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this);
-      map_sub_ = nh_.subscribe("/" + UAV_NAME + "/hector_map/map", 1, &LaserScanCluster::mapCallback, this);
+      map_sub_ = nh_.subscribe("/" + UAV_NAME + "/hector_mapping/map", 1, &LaserScanCluster::mapCallback, this);
 
     }
 
