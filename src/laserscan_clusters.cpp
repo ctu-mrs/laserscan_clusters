@@ -12,11 +12,14 @@
 #include <pcl/segmentation/extract_clusters.h>
 #include <cmath>
 #include <random>
+#include <nav_msgs/OccupancyGrid.h>
+#include <vector>
 
 /*LaserScanCluster Class //{ */
 class LaserScanCluster {
   ros::NodeHandle nh_;
   ros::Subscriber laser_scan_sub_;
+  ros::Subscriber map_sub_;
   ros::Publisher  clusters_pub_;
   ros::Publisher  fake_scan_pub_;
   ros::Timer      timer_;
@@ -34,6 +37,7 @@ class LaserScanCluster {
 public:
   std::vector<double> _obstacles_x, _obstacles_y;
   double              _obstacles_size;
+
 /*LaserScanCluster init//{ */
   LaserScanCluster(ros::NodeHandle &nh, const std::string &UAV_NAME) : nh_(nh), UAV_NAME_(UAV_NAME), rng_(std::random_device{}()) {
     clusters_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_", 1);
@@ -44,6 +48,8 @@ public:
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan_", 1, &LaserScanCluster::laserScanCallback, this);
     } else {
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this);
+      map_sub_ = nh_.subscribe("/" + UAV_NAME + "/hector_map/map", 1, &LaserScanCluster::mapCallback, this);
+
     }
 
     if ((ros::Time::now()-last_time_received_msg_).toSec()> 3.0) {
@@ -301,6 +307,44 @@ public:
   }
   //}
   
+
+/*void mapCallback//{ */
+void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg) {
+    // Map metadata
+    float resolution = msg->info.resolution;  // Map resolution in meters/cell
+    int width = msg->info.width;              // Map width (in number of cells)
+    int height = msg->info.height;            // Map height (in number of cells)
+    geometry_msgs::Pose origin = msg->info.origin; // Map origin (position and orientation)
+
+    // Vector to store obstacle positions
+    std::vector<std::pair<float, float>> obstacle_positions;
+
+    // Iterate through the occupancy grid data
+    for (int i = 0; i < width * height; ++i) {
+        if (msg->data[i] == 100) { // Occupied cell (obstacle)
+            // Convert 1D index to 2D grid coordinates
+            int x_index = i % width;
+            int y_index = i / width;
+
+            // Convert grid coordinates to world coordinates
+            float x_world = origin.position.x + x_index * resolution;
+            float y_world = origin.position.y + y_index * resolution;
+
+            // Store the obstacle's world position
+            obstacle_positions.push_back(std::make_pair(x_world, y_world));
+        }
+    }
+
+    // Output the number of obstacles found
+    ROS_INFO("Found %lu obstacles.", obstacle_positions.size());
+
+    // Print the obstacle positions
+    for (const auto& obstacle : obstacle_positions) {
+        ROS_INFO("Obstacle at: x = %f, y = %f", obstacle.first, obstacle.second);
+    }
+}
+//}
+
 };
 //}
 
