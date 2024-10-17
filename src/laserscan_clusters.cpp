@@ -47,7 +47,7 @@ public:
       timer_          = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan_", 1, &LaserScanCluster::laserScanCallback, this);
     } else {
-      /* laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this); */
+      laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this);
       map_sub_ = nh_.subscribe("/" + UAV_NAME + "/hector_mapping/map", 1, &LaserScanCluster::mapCallback, this);
     }
 
@@ -378,10 +378,10 @@ public:
         float x_world = origin.position.x + x_index * resolution;
         float y_world = origin.position.y + y_index * resolution;
 
-        if (sqrt(pow((x_world - origin.position.x), 2) + pow((y_world - origin.position.y), 2)) < 6.0) {
+        /* if (sqrt(pow((x_world - robot_x_), 2) + pow((y_world - robot_y_,2)) < 6.0) { */
           // Store the obstacle's world position
           obstacle_positions.push_back(std::make_pair(x_world, y_world));
-        }
+        /* } */
       }
     }
 
