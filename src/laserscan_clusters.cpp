@@ -44,11 +44,11 @@ public:
     fake_scan_pub_      = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan_", 1);
     robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
     if (_simulation_) {
-      timer_          = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan_", 1, &LaserScanCluster::laserScanCallback, this);
+      timer_          = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
     } else {
-      /* laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this); */
-      map_sub_ = nh_.subscribe("/" + UAV_NAME + "/hector_mapping/map", 1, &LaserScanCluster::mapCallback, this);
+      laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this);
+      map_sub_        = nh_.subscribe("/" + UAV_NAME + "/hector_mapping/map", 1, &LaserScanCluster::mapCallback, this);
     }
 
     if ((ros::Time::now() - last_time_received_msg_).toSec() > 3.0) {
@@ -307,55 +307,13 @@ public:
   }
   //}
 
-
-  void convertObstaclesToLaserScan(const std::vector<std::pair<float, float>> &obstacle_positions, sensor_msgs::LaserScan::Ptr &scan_msg) {
-    // Set up the LaserScan message header
-    scan_msg->header.stamp    = ros::Time::now();
-    scan_msg->header.frame_id = "laser_frame";  // Replace with your frame ID
-
-    // Set the scan parameters
-    scan_msg->angle_min       = -M_PI;       // Starting angle (e.g., -180 degrees)
-    scan_msg->angle_max       = M_PI;        // Ending angle (e.g., 180 degrees)
-    scan_msg->angle_increment = M_PI / 180;  // 1-degree resolution
-    scan_msg->range_min       = 0.1;         // Minimum range (can be sensor-specific)
-    scan_msg->range_max       = 12.0;        // Maximum range (adjust as needed)
-
-    // Calculate the number of laser beams
-    int num_beams = static_cast<int>((scan_msg->angle_max - scan_msg->angle_min) / scan_msg->angle_increment);
-    scan_msg->ranges.assign(num_beams, scan_msg->range_max);  // Initialize all ranges with max value
-
-    // Convert each obstacle position (x, y) to polar coordinates (range, angle)
-    for (const auto &obstacle : obstacle_positions) {
-      float x = obstacle.first;
-      float y = obstacle.second;
-
-      // Calculate range and angle
-      float range = sqrt(x * x + y * y);
-      float angle = atan2(y, x);
-
-      // Ignore obstacles outside the range of the laser scan
-      if (range >= scan_msg->range_min && range <= scan_msg->range_max && angle >= scan_msg->angle_min && angle <= scan_msg->angle_max) {
-
-        // Find the corresponding index in the scan's ranges array
-        int index = static_cast<int>((angle - scan_msg->angle_min) / scan_msg->angle_increment);
-
-        // Set the range at the corresponding angle (taking the closest obstacle at that angle)
-        if (range < scan_msg->ranges[index]) {
-          scan_msg->ranges[index] = range;
-        }
-      }
-    }
-  }
-
-  void processObstacles(const std::vector<std::pair<float, float>> &obstacle_positions) {
+  /*void processObstacles//{ */
+  void processObstacles(const std::vector < std::pair<float, float> & obstacle_positions) {
     sensor_msgs::LaserScan::Ptr scan_msg(new sensor_msgs::LaserScan);
-
-    // Convert obstacle positions to LaserScan format
-    convertObstaclesToLaserScan(obstacle_positions, scan_msg);
-
-    // Call the laser scan callback with the newly generated scan message
+    convertObstclesToLaserScan(obstacle_postions, scan_msg);
     laserScanCallback(scan_msg);
   }
+  
   /*void mapCallback//{ */
   void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
     // Map metadata
@@ -366,7 +324,7 @@ public:
 
     // Vector to store obstacle positions
     std::vector<std::pair<float, float>> obstacle_positions;
-
+    obstacle_positions.clear();
     // Iterate through the occupancy grid data
     for (int i = 0; i < width * height; ++i) {
       if (msg->data[i] == 100) {  // Occupied cell (obstacle)
@@ -377,8 +335,7 @@ public:
         // Convert grid coordinates to world coordinates
         float x_world = origin.position.x + x_index * resolution;
         float y_world = origin.position.y + y_index * resolution;
-
-        if (sqrt(pow((x_world - origin.position.x), 2) + pow((y_world - origin.position.y), 2)) < 6.0) {
+        if (sqrt(pow(x_world - origin.position.x, 2) + pow(y_world - origin.position.y, 2)) < 2.5) {
           // Store the obstacle's world position
           obstacle_positions.push_back(std::make_pair(x_world, y_world));
         }
@@ -387,12 +344,13 @@ public:
 
     // Output the number of obstacles found
     ROS_INFO("Found %lu obstacles.", obstacle_positions.size());
+    std::cout << "xrobot: " << robot_x_ << ", yrobot: " << robot_y_ << std::endl;
 
     // Print the obstacle positions
-    /* for (const auto &obstacle : obstacle_positions) { */
-    /*   ROS_INFO("Obstacle at: x = %f, y = %f", obstacle.first, obstacle.second); */
-    /* } */
-    /* processObstacles(obstacle_positions); */
+    for (const auto &obstacle : obstacle_positions) {
+      ROS_INFO("Obstacle at: x = %f, y = %f", obstacle.first, obstacle.second);
+    }
+    processObstacles(obstacle_positions);
   }
   //}
 };
