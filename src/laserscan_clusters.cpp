@@ -307,6 +307,46 @@ public:
   }
   //}
 
+void convertObstaclesToLaserScan(const std::vector<std::pair<float, float>>& obstacle_positions,
+                                 sensor_msgs::LaserScan::Ptr& scan_msg) {
+    // Set up the LaserScan message header
+    scan_msg->header.stamp = ros::Time::now();
+    scan_msg->header.frame_id = "laser_frame";  // Replace with your frame ID
+
+    // Set the scan parameters
+    scan_msg->angle_min = -M_PI;  // Starting angle (e.g., -180 degrees)
+    scan_msg->angle_max = M_PI;   // Ending angle (e.g., 180 degrees)
+    scan_msg->angle_increment = M_PI / 180;  // 1-degree resolution
+    scan_msg->range_min = 0.1;   // Minimum range (can be sensor-specific)
+    scan_msg->range_max = 12.0;  // Maximum range (adjust as needed)
+
+    // Calculate the number of laser beams
+    int num_beams = static_cast<int>((scan_msg->angle_max - scan_msg->angle_min) / scan_msg->angle_increment);
+    scan_msg->ranges.assign(num_beams, scan_msg->range_max);  // Initialize all ranges with max value
+
+    // Convert each obstacle position (x, y) to polar coordinates (range, angle)
+    for (const auto& obstacle : obstacle_positions) {
+        float x = obstacle.first;
+        float y = obstacle.second;
+
+        // Calculate range and angle
+        float range = sqrt(x * x + y * y);
+        float angle = atan2(y, x);
+
+        // Ignore obstacles outside the range of the laser scan
+        if (range >= scan_msg->range_min && range <= scan_msg->range_max && 
+            angle >= scan_msg->angle_min && angle <= scan_msg->angle_max) {
+
+            // Find the corresponding index in the scan's ranges array
+            int index = static_cast<int>((angle - scan_msg->angle_min) / scan_msg->angle_increment);
+
+            // Set the range at the corresponding angle (taking the closest obstacle at that angle)
+            if (range < scan_msg->ranges[index]) {
+                scan_msg->ranges[index] = range;
+            }
+        }
+    }
+}
   /*void processObstacles//{ */
   void processObstacles(const std::vector < std::pair<float, float> & obstacle_positions) {
     sensor_msgs::LaserScan::Ptr scan_msg(new sensor_msgs::LaserScan);
