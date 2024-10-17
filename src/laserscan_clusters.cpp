@@ -42,13 +42,13 @@ public:
   LaserScanCluster(ros::NodeHandle &nh, const std::string &UAV_NAME) : nh_(nh), UAV_NAME_(UAV_NAME), rng_(std::random_device{}()) {
     clusters_pub_       = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_", 1);
     fake_scan_pub_      = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan_", 1);
-    timer_              = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
     robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
     if (_simulation_) {
+      timer_          = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan_", 1, &LaserScanCluster::laserScanCallback, this);
     } else {
       /* laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this); */
-      map_sub_        = nh_.subscribe("/" + UAV_NAME + "/hector_mapping/map", 1, &LaserScanCluster::mapCallback, this);
+      map_sub_ = nh_.subscribe("/" + UAV_NAME + "/hector_mapping/map", 1, &LaserScanCluster::mapCallback, this);
     }
 
     if ((ros::Time::now() - last_time_received_msg_).toSec() > 3.0) {
@@ -76,6 +76,7 @@ public:
   //}
 
   /*void laserScanCallback //{ */
+
   void laserScanCallback(const sensor_msgs::LaserScan::ConstPtr &scan_msg) {
     // Convert LaserScan to PointCloud2
     sensor_msgs::PointCloud2::Ptr cloud_msg(new sensor_msgs::PointCloud2);
@@ -377,8 +378,10 @@ public:
         float x_world = origin.position.x + x_index * resolution;
         float y_world = origin.position.y + y_index * resolution;
 
-        // Store the obstacle's world position
-        obstacle_positions.push_back(std::make_pair(x_world, y_world));
+        if (sqrt(pow((x_world - origin.position.x), 2) + pow((y_world - origin.position.y), 2)) < 6.0) {
+          // Store the obstacle's world position
+          obstacle_positions.push_back(std::make_pair(x_world, y_world));
+        }
       }
     }
 
@@ -386,10 +389,10 @@ public:
     ROS_INFO("Found %lu obstacles.", obstacle_positions.size());
 
     // Print the obstacle positions
-    for (const auto &obstacle : obstacle_positions) {
-      ROS_INFO("Obstacle at: x = %f, y = %f", obstacle.first, obstacle.second);
-    }
-    processObstacles(obstacle_positions)
+    /* for (const auto &obstacle : obstacle_positions) { */
+    /*   ROS_INFO("Obstacle at: x = %f, y = %f", obstacle.first, obstacle.second); */
+    /* } */
+    /* processObstacles(obstacle_positions); */
   }
   //}
 };
