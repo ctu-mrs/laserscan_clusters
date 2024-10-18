@@ -47,8 +47,10 @@ public:
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan_", 1, &LaserScanCluster::laserScanCallback, this);
       timer_          = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
     } else {
-   //   laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this);
-      map_sub_        = nh_.subscribe("/" + UAV_NAME + "/hector_mapping/map", 1, &LaserScanCluster::mapCallback, this);
+      // if you want obstacles from laserscan
+      /* laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this); */
+      // if you want obstacles from hector_mapping
+      map_sub_ = nh_.subscribe("/" + UAV_NAME + "/hector_mapping/map", 1, &LaserScanCluster::mapCallback, this);
     }
 
     if ((ros::Time::now() - last_time_received_msg_).toSec() > 3.0) {
@@ -179,6 +181,53 @@ public:
   //}
 
   /* createClusterMarker //{ */
+  visualization_msgs::Marker createClusterMarker(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cluster, std::size_t cluster_id) {
+    visualization_msgs::Marker marker;
+    marker.id                 = cluster_id;
+    marker.type               = visualization_msgs::Marker::POINTS;
+    marker.action             = visualization_msgs::Marker::ADD;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = marker.scale.y = marker.scale.z = 0.15;  // Point size
+
+    // Fixed colors for each cluster (you can customize these)
+    std::vector<std::array<double, 3>> fixed_colors = {
+        {1.0, 0.0, 0.0},  // Red
+        {0.0, 1.0, 0.0},  // Green
+        {0.0, 0.0, 1.0},  // Blue
+        {1.0, 1.0, 0.0},  // Yellow
+        {1.0, 0.0, 1.0},  // Magenta
+        {0.0, 1.0, 1.0},  // Cyan
+                          // Add more colors as needed
+    };
+
+    // Select a color based on cluster_id
+    std::array<double, 3> cluster_color;
+    if (cluster_id < fixed_colors.size()) {
+      cluster_color = fixed_colors[cluster_id];
+    } else {
+      // If there are more clusters than predefined colors, use a default color
+      cluster_color = {0.5, 0.5, 0.5};  // Gray
+    }
+
+    marker.color.r = cluster_color[0];
+    marker.color.g = cluster_color[1];
+    marker.color.b = cluster_color[2];
+    marker.color.a = 0.5;  // Alpha
+
+    // Convert cluster points to geometry_msgs/Point
+    for (const auto &point : cluster->points) {
+      geometry_msgs::Point p;
+      p.x = point.x + robot_x_;
+      p.y = point.y + robot_y_;
+      p.z = point.z;
+      marker.points.push_back(p);
+    }
+
+    return marker;
+  }
+  //}
+
+  /* createClusterMarker //{ */
   visualization_msgs::Marker createClusterMarker(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cluster, const std_msgs::Header &header, std::size_t cluster_id) {
     visualization_msgs::Marker marker;
     marker.header             = header;
@@ -305,7 +354,7 @@ public:
     laserScanCallback(fake_scan);
   }
   //}
- 
+
   /*void mapCallback//{ */
   void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
     // Map metadata
@@ -329,8 +378,8 @@ public:
         float y_world = origin.position.y + y_index * resolution;
 
         /* if (sqrt(pow((x_world - robot_x_), 2) + pow((y_world - robot_y_,2)) < 6.0) { */
-          // Store the obstacle's world position
-          obstacle_positions.push_back(std::make_pair(x_world, y_world));
+        // Store the obstacle's world position
+        obstacle_positions.push_back(std::make_pair(x_world, y_world));
         /* } */
       }
     }
@@ -347,17 +396,17 @@ public:
   }
   //}
 
-/*void processObstacles//{ */
-void processObstacles(std::vector<std::pair<float, float>> obstacle_positions) {
-        // Step 1: Convert obstacle_positions to PCL PointCloud
+  /*void processObstacles//{ */
+  void processObstacles(std::vector<std::pair<float, float>> obstacle_positions) {
+    // Step 1: Convert obstacle_positions to PCL PointCloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    
-    for (const auto& pos : obstacle_positions) {
-        pcl::PointXYZ point;
-        point.x = pos.first;
-        point.y = pos.second;
-        point.z = 0.0;  // Assuming obstacles are on a 2D plane
-        cloud->points.push_back(point);
+
+    for (const auto &pos : obstacle_positions) {
+      pcl::PointXYZ point;
+      point.x = pos.first;
+      point.y = pos.second;
+      point.z = 0.0;  // Assuming obstacles are on a 2D plane
+      cloud->points.push_back(point);
     }
 
     // Step 2: Apply Voxel Grid Downsampling
@@ -368,77 +417,53 @@ void processObstacles(std::vector<std::pair<float, float>> obstacle_positions) {
     vox.filter(*cloud_filtered);
 
     // Step 3: Filter points based on maximum allowed distance
-    double max_distance = 12.0;  // Example maximum distance, you can parameterize this
+    double                              max_distance = 12.0;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_distance(new pcl::PointCloud<pcl::PointXYZ>);
 
-    for (const auto& point : cloud_filtered->points) {
-        double distance = std::sqrt(point.x * point.x + point.y * point.y);
-        if (distance <= max_distance) {
-            cloud_filtered_distance->points.push_back(point);
-        }
+    for (const auto &point : cloud_filtered->points) {
+      double distance = std::sqrt(point.x * point.x + point.y * point.y);
+      if (distance <= max_distance) {
+        cloud_filtered_distance->points.push_back(point);
+      }
     }
 
     // Step 4: Apply Euclidean Clustering to the filtered point cloud
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
     tree->setInputCloud(cloud_filtered_distance);
 
-    std::vector<pcl::PointIndices> cluster_indices;
+    std::vector<pcl::PointIndices>                 cluster_indices;
     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-    ec.setClusterTolerance(0.2);  // Adjust based on your environment
-    ec.setMinClusterSize(50);     // Minimum points for a cluster
-    ec.setMaxClusterSize(25000);  // Maximum points for a cluster
+    ec.setClusterTolerance(_cluster_tolerance_);  // Adjust based on your environment
+    ec.setMinClusterSize(_cluster_min_size_);
+    ec.setMaxClusterSize(_cluster_max_size_);
     ec.setSearchMethod(tree);
     ec.setInputCloud(cloud_filtered_distance);
     ec.extract(cluster_indices);
 
     // Step 5: Create and publish MarkerArray for visualization
+    //
+
+    std_msgs::Header header;
+    header.frame_id = UAV_NAME_ + "/local_origin";
+    header.stamp    = ros::Time::now();
+
     visualization_msgs::MarkerArray clusters;
 
     for (std::size_t i = 0; i < cluster_indices.size(); ++i) {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cluster(new pcl::PointCloud<pcl::PointXYZ>);
-        for (std::size_t j = 0; j < cluster_indices[i].indices.size(); ++j) {
-            cluster->points.push_back(cloud_filtered_distance->points[cluster_indices[i].indices[j]]);
-        }
+      pcl::PointCloud<pcl::PointXYZ>::Ptr cluster(new pcl::PointCloud<pcl::PointXYZ>);
+      for (std::size_t j = 0; j < cluster_indices[i].indices.size(); ++j) {
+        cluster->points.push_back(cloud_filtered_distance->points[cluster_indices[i].indices[j]]);
+      }
 
-        // Create Marker for the cluster (assuming you have a function to do this)
-        visualization_msgs::Marker marker = createClusterMarker(cluster, i);
-        clusters.markers.push_back(marker);
+      // Create Marker for the cluster (assuming you have a function to do this)
+      visualization_msgs::Marker marker = createClusterMarker(cluster, header, i);
+      clusters.markers.push_back(marker);
     }
 
     // Publish the clusters to RViz
     clusters_pub_.publish(clusters);
-}
-//}
-
-/*void createClusterMarker//{ */
-visualization_msgs::Marker createClusterMarker(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cluster, int id) {
-    visualization_msgs::Marker marker;
-    marker.header.frame_id = "map";  // Set appropriate frame id
-    marker.header.stamp = ros::Time::now();
-    marker.ns = "clusters";
-    marker.id = id;
-    marker.type = visualization_msgs::Marker::SPHERE_LIST;
-    marker.action = visualization_msgs::Marker::ADD;
-
-    marker.scale.x = 0.05;  // Sphere size
-    marker.scale.y = 0.05;
-    marker.scale.z = 0.05;
-
-    marker.color.a = 1.0;
-    marker.color.r = 1.0;
-    marker.color.g = 0.0;
-    marker.color.b = 0.0;
-
-    for (const auto& point : cluster->points) {
-        geometry_msgs::Point p;
-        p.x = point.x;
-        p.y = point.y;
-        p.z = point.z;
-        marker.points.push_back(p);
-    }
-
-    return marker;
-}
+  }
+  //}
 };
 //}
 
