@@ -21,17 +21,21 @@ class LaserScanCluster {
   ros::Subscriber laser_scan_sub_;
   ros::Subscriber map_sub_;
   ros::Publisher  clusters_pub_;
+  ros::Publisher  clusters_pub_1;
   ros::Publisher  fake_scan_pub_;
   ros::Timer      timer_;
   std::string     UAV_NAME_;
   std::mt19937    rng_;  // Random number generator
   double          robot_x_ = 0.0;
+  double          robot_x1_ = 0.0;
   double          robot_y_ = 0.0;
+  double          robot_y1_ = 0.0;
   double          _cluster_tolerance_;
   int             _cluster_min_size_;
   int             _cluster_max_size_;
   bool            _simulation_ = false;
   ros::Subscriber robot_position_sub_;
+  ros::Subscriber robot_position_sub_1;
   ros::Time       last_time_received_msg_;
 
 public:
@@ -41,8 +45,12 @@ public:
   /*LaserScanCluster init//{ */
   LaserScanCluster(ros::NodeHandle &nh, const std::string &UAV_NAME) : nh_(nh), UAV_NAME_(UAV_NAME), rng_(std::random_device{}()) {
     clusters_pub_       = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_", 1);
+    
+    clusters_pub_1       = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_1", 1);
     fake_scan_pub_      = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan_", 1);
-    robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
+    robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback1, this);
+    robot_position_sub_1 = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
+
     if (_simulation_) {
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan_", 1, &LaserScanCluster::laserScanCallback, this);
       timer_          = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
@@ -75,6 +83,13 @@ public:
       robot_y_ = msg->pose.position.y;
     }
   }
+
+  /* robotPositionCallback //{ */
+  void robotPositionCallback1(const visualization_msgs::Marker::ConstPtr &msg) {
+      robot_x1_ = msg->pose.position.x;
+      robot_y1_ = msg->pose.position.y;
+  }
+  /* void OdomCallback( */
   //}
 
   /*void laserScanCallback //{ */
@@ -93,7 +108,7 @@ public:
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
     vox.filter(*cloud_filtered);
     // Set the maximum allowed distance FIXME: to add in param_loader
-    double max_distance = 12.0;  // Set your desired maximum distance
+    double max_distance = 9.0;  // Set your desired maximum distance
 
     // Create a filtered point cloud based on distance
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_distance(new pcl::PointCloud<pcl::PointXYZ>);
@@ -132,7 +147,7 @@ public:
       clusters.markers.push_back(marker);
     }
     // Publish MarkerArray
-    clusters_pub_.publish(clusters);
+    clusters_pub_1.publish(clusters);
   }
   //}
 
@@ -417,11 +432,12 @@ public:
     vox.filter(*cloud_filtered);
 
     // Step 3: Filter points based on maximum allowed distance
-    double                              max_distance = 12.0;
+    double                              max_distance = 9.0;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_distance(new pcl::PointCloud<pcl::PointXYZ>);
 
     for (const auto &point : cloud_filtered->points) {
-      double distance = std::sqrt(point.x * point.x + point.y * point.y);
+      /* double distance = std::sqrt(point.x * point.x + point.y * point.y); */
+      double distance = std::sqrt(pow(point.x-robot_x1_,2) + pow(point.y-robot_y1_,2));
       if (distance <= max_distance) {
         cloud_filtered_distance->points.push_back(point);
       }
