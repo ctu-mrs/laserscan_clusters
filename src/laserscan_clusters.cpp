@@ -56,7 +56,7 @@ public:
       timer_          = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
     } else {
       // if you want obstacles from laserscan
-      /* laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this); */
+      laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME + "/rplidar/scan_raw", 1, &LaserScanCluster::laserScanCallback, this);
       // if you want obstacles from hector_mapping
       map_sub_ = nh_.subscribe("/" + UAV_NAME + "/hector_mapping/map", 1, &LaserScanCluster::mapCallback, this);
     }
@@ -147,7 +147,7 @@ public:
       clusters.markers.push_back(marker);
     }
     // Publish MarkerArray
-    clusters_pub_1.publish(clusters);
+    clusters_pub_.publish(clusters);
   }
   //}
 
@@ -477,7 +477,7 @@ public:
     }
 
     // Publish the clusters to RViz
-    clusters_pub_.publish(clusters);
+    clusters_pub_1.publish(clusters);
   }
   //}
 };
