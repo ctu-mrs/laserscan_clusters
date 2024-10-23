@@ -108,15 +108,14 @@ public:
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
     vox.filter(*cloud_filtered);
     // Set the maximum allowed distance FIXME: to add in param_loader
-    double max_distance = 8.0;  // Set your desired maximum distance
 
     // Create a filtered point cloud based on distance
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_distance(new pcl::PointCloud<pcl::PointXYZ>);
     for (const auto &point : cloud_filtered->points) {
       double distance = sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
-      if (distance <= max_distance) {
+      /* if (distance <= 8.0) { */
         cloud_filtered_distance->points.push_back(point);
-      }
+      /* } */
     }
 
     // Apply Euclidean Clustering to the filtered point cloud
@@ -400,13 +399,13 @@ public:
     }
 
     // Output the number of obstacles found
-    ROS_INFO("Found %lu obstacles.", obstacle_positions.size());
-    std::cout << "xrobot: " << robot_x_ << ", yrobot: " << robot_y_ << std::endl;
+    /* ROS_INFO("Found %lu obstacles.", obstacle_positions.size()); */
+    /* std::cout << "xrobot: " << robot_x_ << ", yrobot: " << robot_y_ << std::endl; */
 
     // Print the obstacle positions
-    for (const auto &obstacle : obstacle_positions) {
-      ROS_INFO("Obstacle at: x = %f, y = %f", obstacle.first, obstacle.second);
-    }
+    /* for (const auto &obstacle : obstacle_positions) { */
+    /*   ROS_INFO("Obstacle at: x = %f, y = %f", obstacle.first, obstacle.second); */
+    /* } */
     processObstacles(obstacle_positions);
   }
   //}
@@ -436,10 +435,10 @@ public:
 
     for (const auto &point : cloud_filtered->points) {
       /* double distance = std::sqrt(point.x * point.x + point.y * point.y); */
-      double distance = std::sqrt(pow(point.x-robot_x1_,2) + pow(point.y-robot_y1_,2));
-      if (distance <= 8.0) {
+      /* double distance = std::sqrt(pow(point.x-robot_x1_,2) + pow(point.y-robot_y1_,2)); */
+      /* if (distance <= 8.0) { */
         cloud_filtered_distance->points.push_back(point);
-      }
+      /* } */
     }
 
     // Step 4: Apply Euclidean Clustering to the filtered point cloud
