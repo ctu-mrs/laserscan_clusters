@@ -108,7 +108,7 @@ public:
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
     vox.filter(*cloud_filtered);
     // Set the maximum allowed distance FIXME: to add in param_loader
-    double max_distance = 9.0;  // Set your desired maximum distance
+    double max_distance = 8.0;  // Set your desired maximum distance
 
     // Create a filtered point cloud based on distance
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_distance(new pcl::PointCloud<pcl::PointXYZ>);
@@ -391,11 +391,11 @@ public:
         // Convert grid coordinates to world coordinates
         float x_world = origin.position.x + x_index * resolution;
         float y_world = origin.position.y + y_index * resolution;
-
-        /* if (sqrt(pow((x_world - robot_x_), 2) + pow((y_world - robot_y_,2)) < 6.0) { */
-        // Store the obstacle's world position
+/* TOADD this statement to reduce the number of obstacles */
+        if (sqrt(pow(x_world - robot_x_, 2) + pow(y_world - robot_y_,2) < 8.0)) {
+        /* // Store the obstacle's world position */
         obstacle_positions.push_back(std::make_pair(x_world, y_world));
-        /* } */
+        }
       }
     }
 
@@ -432,13 +432,12 @@ public:
     vox.filter(*cloud_filtered);
 
     // Step 3: Filter points based on maximum allowed distance
-    double                              max_distance = 9.0;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_distance(new pcl::PointCloud<pcl::PointXYZ>);
 
     for (const auto &point : cloud_filtered->points) {
       /* double distance = std::sqrt(point.x * point.x + point.y * point.y); */
       double distance = std::sqrt(pow(point.x-robot_x1_,2) + pow(point.y-robot_y1_,2));
-      if (distance <= max_distance) {
+      if (distance <= 8.0) {
         cloud_filtered_distance->points.push_back(point);
       }
     }
