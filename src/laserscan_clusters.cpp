@@ -391,10 +391,8 @@ public:
         float x_world = origin.position.x + x_index * resolution;
         float y_world = origin.position.y + y_index * resolution;
 /* TOADD this statement to reduce the number of obstacles */
-        if (sqrt(pow(x_world - robot_x_, 2) + pow(y_world - robot_y_,2) < 8.0)) {
         /* // Store the obstacle's world position */
         obstacle_positions.push_back(std::make_pair(x_world, y_world));
-        }
       }
     }
 
