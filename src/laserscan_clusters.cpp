@@ -33,7 +33,7 @@ class LaserScanCluster {
   double          _cluster_tolerance_;
   int             _cluster_min_size_;
   int             _cluster_max_size_;
-  bool            _simulation_ = false;
+  bool            _simulation_ = true;
   ros::Subscriber robot_position_sub_;
   ros::Subscriber robot_position_sub_1;
   ros::Time       last_time_received_msg_;
@@ -50,7 +50,7 @@ public:
     fake_scan_pub_      = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan_", 1);
     robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback1, this);
     robot_position_sub_1 = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
-
+    std::cout << _simulation_ << "/n";
     if (_simulation_) {
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan_", 1, &LaserScanCluster::laserScanCallback, this);
       timer_          = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
@@ -83,6 +83,7 @@ public:
       robot_y_ = msg->pose.position.y;
     }
   }
+  //}
 
   /* robotPositionCallback //{ */
   void robotPositionCallback1(const visualization_msgs::Marker::ConstPtr &msg) {
@@ -301,7 +302,7 @@ public:
     fake_scan->time_increment  = 0.0;
     fake_scan->scan_time       = 0.1;
     fake_scan->range_min       = 0.0;
-    fake_scan->range_max       = 16.0;  // Set your desired max range
+    fake_scan->range_max       = 20.0;  // Set your desired max range
 
     int num_readings = static_cast<int>((fake_scan->angle_max - fake_scan->angle_min) / fake_scan->angle_increment);
     fake_scan->ranges.resize(num_readings);
