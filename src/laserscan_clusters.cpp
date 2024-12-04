@@ -1,6 +1,9 @@
 #include <ros/ros.h>
+#include <mrs_lib/transformer.h>
+#include <tf/tf.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <nav_msgs/Odometry.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <pcl/point_types.h>
@@ -14,7 +17,6 @@
 #include <random>
 #include <nav_msgs/OccupancyGrid.h>
 #include <vector>
-
 /*LaserScanCluster Class //{ */
 class LaserScanCluster {
   ros::NodeHandle nh_;
@@ -23,6 +25,7 @@ class LaserScanCluster {
   ros::Publisher  clusters_pub_;
   ros::Publisher  clusters_pub_1;
   ros::Publisher  fake_scan_pub_;
+  ros::Publisher  obstacles_array_pub_;
   ros::Timer      timer_;
   std::string     UAV_NAME_;
   std::mt19937    rng_;  // Random number generator
@@ -30,14 +33,18 @@ class LaserScanCluster {
   double          robot_x1_ = 0.0;
   double          robot_y_ = 0.0;
   double          robot_y1_ = 0.0;
+  double roll_ = 0.0;
+  double pitch_ = 0.0;
+  double robot_yaw_ = 0.0;
   double          _cluster_tolerance_;
   int             _cluster_min_size_;
   int             _cluster_max_size_;
   bool            _simulation_ = true;
   ros::Subscriber robot_position_sub_;
+  ros::Subscriber robot_heding_sub_;
   ros::Subscriber robot_position_sub_1;
   ros::Time       last_time_received_msg_;
-
+  mrs_lib::Transformer transformer_;
 public:
   std::vector<double> _obstacles_x, _obstacles_y;
   double              _obstacles_size;
@@ -47,12 +54,22 @@ public:
     clusters_pub_       = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_", 1);
     
     clusters_pub_1       = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_1", 1);
-    fake_scan_pub_      = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan_", 1);
-    robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback1, this);
-    robot_position_sub_1 = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this);
-    std::cout << _simulation_ << "/n";
+
+    /* fake_scan_pub_      = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan_", 1); */
+    obstacles_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/obstacles_", 1);
+
+    fake_scan_pub_      = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan", 1);
+
+    /* robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback1, this); */
+
+    /* robot_position_sub_1 = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback, this); */
+
+    robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/estimation_manager/odom_main", 1, &LaserScanCluster::robotPositionCallback1, this);
+
+/*     robot_position_sub_1 = nh_.subscribe("/" + UAV_NAME + "/estimation_manager/odom_main", 1, &LaserScanCluster::robotPositionCallback, this); */
+
     if (_simulation_) {
-      laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan_", 1, &LaserScanCluster::laserScanCallback, this);
+      laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan", 1, &LaserScanCluster::laserScanCallback, this);
       timer_          = nh_.createTimer(ros::Duration(0.1), &LaserScanCluster::timerCallback, this);
     } else {
       // if you want obstacles from laserscan
@@ -73,24 +90,59 @@ public:
     param_loader.loadParam("clustering/min_size", _cluster_min_size_);
     param_loader.loadParam("clustering/max_size", _cluster_max_size_);
     param_loader.loadParam("simulation", _simulation_);
+
   }
   //}
 
-  /* robotPositionCallback //{ */
-  void robotPositionCallback(const visualization_msgs::Marker::ConstPtr &msg) {
+  /* /1* robotPositionCallback //{ *1/ */
+  /* void robotPositionCallback(const visualization_msgs::Marker::ConstPtr &msg) { */
+  /*   if (_simulation_) { */
+  /*     robot_x_ = msg->pose.position.x; */
+  /*     robot_y_ = msg->pose.position.y; */
+  /*   } */
+  /* } */
+  /* //} */
+
+  /* /1* robotPositionCallback //{ *1/ */
+  /* void robotPositionCallback(const nav_msgs::Odometry::ConstPtr &msg) { */
+  /*   if (_simulation_) { */
+  /*     robot_x_ = msg->pose.pose.position.x; */
+  /*     robot_y_ = msg->pose.pose.position.y; */
+  /*     tf::Quaternion quat( */
+  /*       msg->pose.pose.orientation.x, */
+  /*       msg->pose.pose.orientation.y, */
+  /*       msg->pose.pose.orientation.z, */
+  /*       msg->pose.pose.orientation.w */
+  /*     ); */
+  /*     // Convert quaternion to roll, pitch, and yaw */
+  /*     tf::Matrix3x3(quat).getRPY(roll_, pitch_, robot_yaw_); */
+  /*     } */
+  /* } */
+  /* //} */
+
+  /* /1* robotPositionCallback1 //{ *1/ */
+  /* void robotPositionCallback1(const visualization_msgs::Marker::ConstPtr &msg) { */
+  /*     robot_x1_ = msg->pose.position.x; */
+  /*     robot_y1_ = msg->pose.position.y; */
+  /* } */
+  /* /1* void OdomCallback( *1/ */
+  /* //} */
+
+  /* robotPositionCallback1 //{ */
+  void robotPositionCallback1(const nav_msgs::Odometry::ConstPtr &msg) {
     if (_simulation_) {
-      robot_x_ = msg->pose.position.x;
-      robot_y_ = msg->pose.position.y;
-    }
+      robot_x_ = msg->pose.pose.position.x;
+      robot_y_ = msg->pose.pose.position.y;
+      tf::Quaternion quat(
+        msg->pose.pose.orientation.x,
+        msg->pose.pose.orientation.y,
+        msg->pose.pose.orientation.z,
+        msg->pose.pose.orientation.w
+      );
+      // Convert quaternion to roll, pitch, and yaw
+      tf::Matrix3x3(quat).getRPY(roll_, pitch_, robot_yaw_);
+      }
   }
-  //}
-
-  /* robotPositionCallback //{ */
-  void robotPositionCallback1(const visualization_msgs::Marker::ConstPtr &msg) {
-      robot_x1_ = msg->pose.position.x;
-      robot_y1_ = msg->pose.position.y;
-  }
-  /* void OdomCallback( */
   //}
 
   /*void laserScanCallback //{ */
@@ -115,7 +167,11 @@ public:
     for (const auto &point : cloud_filtered->points) {
       double distance = sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
       /* if (distance <= 8.0) { */
-        cloud_filtered_distance->points.push_back(point);
+      /* pcl::PointXYZ offset_point; */
+      /* offset_point.x = point.x + 10;  // Apply x offset */
+      /* offset_point.y = point.y + 10;  // Apply y offset */
+      /* offset_point.z = point.z;             // z remains unchanged */
+      cloud_filtered_distance->points.push_back(point);
       /* } */
     }
 
@@ -163,7 +219,7 @@ public:
     // Populate PointCloudXYZ with points from LaserScan
     for (size_t i = 0; i < scan_msg->ranges.size(); ++i) {
 
-      if (scan_msg->ranges[i] < 0.4) {
+      if (scan_msg->ranges[i] < 0.01) {
         continue;
       }
 
@@ -290,12 +346,55 @@ public:
   }
   //}
 
+  /* createObstaclesMarker //{ */
+ void publishObstacleMarkers(const std::vector<double>& obstacles_x, 
+                                const std::vector<double>& obstacles_y, 
+                                double obstacle_size) {
+        visualization_msgs::MarkerArray marker_array;
+        for (size_t i = 0; i < obstacles_x.size(); ++i) {
+            visualization_msgs::Marker marker;
+            marker.header.frame_id = UAV_NAME_ + "/world_origin";
+            marker.header.stamp = ros::Time::now();
+            marker.ns = "obstacle_cylinders";
+            marker.id = i; // Unique ID for each marker
+            marker.type = visualization_msgs::Marker::CYLINDER;
+            marker.action = visualization_msgs::Marker::ADD;
+            
+            // Set position and scale
+            marker.pose.position.x = obstacles_x[i];
+            marker.pose.position.y = obstacles_y[i];
+            marker.pose.position.z = 0.0; // Center height
+            marker.pose.orientation.x = 0.0;
+            marker.pose.orientation.y = 0.0;
+            marker.pose.orientation.z = 0.0;
+            marker.pose.orientation.w = 1.0;
+
+            marker.scale.x = obstacle_size*2; // Diameter in X
+            marker.scale.y = obstacle_size*2; // Diameter in Y
+            marker.scale.z = obstacle_size; // Height
+
+            // Set color
+            marker.color.r = 1.0; // Red
+            marker.color.g = 0.0;
+            marker.color.b = 0.0;
+            marker.color.a = 0.8; // Semi-transparent
+
+            marker_array.markers.push_back(marker);
+        }
+
+        // Publish the marker array
+        obstacles_array_pub_.publish(marker_array);
+    }
+  //}
+
   /*void timerCallback //{ */
   void timerCallback(const ros::TimerEvent &) {
     // Create a fake LaserScan message
     sensor_msgs::LaserScan::Ptr fake_scan(new sensor_msgs::LaserScan);
     fake_scan->header.stamp    = ros::Time::now();
+    /* fake_scan->header.frame_id = UAV_NAME_ + "/world_origin"; */
     fake_scan->header.frame_id = UAV_NAME_ + "/world_origin";
+
     fake_scan->angle_min       = 0.0;
     fake_scan->angle_max       = 6.28;  // 2 * pi
     fake_scan->angle_increment = 0.225 / 180 * 3.1415;
@@ -308,12 +407,21 @@ public:
     fake_scan->ranges.resize(num_readings);
 
     double                                 obstacle_radius = _obstacles_size;
+    std::vector<std::pair<double, double>> obstacles0;
     std::vector<std::pair<double, double>> obstacles;
     for (size_t i = 0; i < _obstacles_x.size(); ++i) {
       obstacles.emplace_back(_obstacles_x[i], _obstacles_y[i]);
     }
+    
+
+
+    /* transformObstacles(obstacles0, obstacles, robot_x_,robot_y_,0); */ 
+
+
+
+
     // Random noise generator
-    std::normal_distribution<double> noise_distribution(0.0, 0.3);  // Mean 0, Stddev 0.1
+    std::normal_distribution<double> noise_distribution(0.0, 0.01);  // Mean 0, Stddev 0.1
 
     // Fill ranges with simulated data
     for (int i = 0; i < num_readings; ++i) {
@@ -332,11 +440,15 @@ public:
         double direction_x = cos(angle);
         double direction_y = sin(angle);
 
+        /* double direction_x = cos(angle+robot_yaw_); */
+        /* double direction_y = sin(angle+robot_yaw_); */
         // Calculate the vector from the robot to the obstacle
         double dx = obstacle_x - robot_x_;
         double dy = obstacle_y - robot_y_;
-
-        // Project the vector onto the direction of the LaserScan
+        /* double dx = (obstacle_x - robot_x_)*cos(robot_yaw_) + (obstacle_x - robot_x_)*sin(robot_yaw_) ; */
+        /* double dy = -(obstacle_x - robot_x_)*sin(robot_yaw_) + (obstacle_x - robot_x_)*cos(robot_yaw_) ; */
+        
+        // Project the vector onto the direction of the LaserSca
         double projection = direction_x * dx + direction_y * dy;
         if (projection > 0) {
           // Calculate the point on the obstacle's perimeter closest to the laser ray
@@ -350,6 +462,7 @@ public:
         }
       }
 
+      
       // Add noise to the distance value
       double noisy_distance = min_distance + noise_distribution(rng_);
       // Ensure the range is within valid bounds
@@ -364,13 +477,107 @@ public:
 
     // Publish the fake LaserScan message
     fake_scan_pub_.publish(*fake_scan);
-
     // Call the laserScanCallback with the fake LaserScan message
     laserScanCallback(fake_scan);
+    publishObstacleMarkers(_obstacles_x, _obstacles_y, _obstacles_size);
   }
   //}
 
-  /*void mapCallback//{ */
+/*/1*void timerCallback //{ *1/ */
+/*void timerCallback(const ros::TimerEvent &) { */
+/*    // Create a fake LaserScan message */
+/*    sensor_msgs::LaserScan::Ptr fake_scan(new sensor_msgs::LaserScan); */
+/*    fake_scan->header.stamp    = ros::Time::now(); */
+/*    fake_scan->header.frame_id = UAV_NAME_ + "/fcu"; */
+
+/*    fake_scan->angle_min       = 0.0; */
+/*    fake_scan->angle_max       = 6.28;  // 2 * pi */
+/*    fake_scan->angle_increment = 0.225 / 180 * 3.1415; */
+/*    fake_scan->time_increment  = 0.0; */
+/*    fake_scan->scan_time       = 0.1; */
+/*    fake_scan->range_min       = 0.0; */
+/*    fake_scan->range_max       = 20.0;  // Set your desired max range */
+
+/*    int num_readings = static_cast<int>((fake_scan->angle_max - fake_scan->angle_min) / fake_scan->angle_increment); */
+/*    fake_scan->ranges.resize(num_readings); */
+
+/*    double obstacle_radius = _obstacles_size; */
+
+/*    // Step 1: Transform obstacles from world_origin to fcu */
+/*    std::vector<std::pair<double, double>> obstacles_in_fcu; */
+/*    try { */
+/*        // Create a TF buffer and listener */
+/*        tf2_ros::Buffer tfBuffer; */
+/*        tf2_ros::TransformListener tfListener(tfBuffer); */
+
+/*        // Get the transform from world_origin to fcu */
+/*        geometry_msgs::TransformStamped transformStamped; */
+/*        transformStamped = tfBuffer.lookupTransform(UAV_NAME_ + "/fcu", UAV_NAME_ + "/world_origin", ros::Time(0)); */
+
+/*        // Transform each obstacle to fcu frame */
+/*        for (size_t i = 0; i < _obstacles_x.size(); ++i) { */
+/*            geometry_msgs::PointStamped obstacle_world, obstacle_fcu; */
+/*            obstacle_world.header.frame_id = UAV_NAME_ + "/world_origin"; */
+/*            obstacle_world.point.x         = _obstacles_x[i]; */
+/*            obstacle_world.point.y         = _obstacles_y[i]; */
+/*            obstacle_world.point.z         = 0.0; */
+
+/*            tf2::doTransform(obstacle_world, obstacle_fcu, transformStamped); */
+/*            obstacles_in_fcu.emplace_back(obstacle_fcu.point.x, obstacle_fcu.point.y); */
+/*        } */
+/*    } catch (tf2::TransformException &ex) { */
+/*        ROS_WARN("Failed to transform obstacles to fcu frame: %s", ex.what()); */
+/*        return; // Exit if transform is not available */
+/*    } */
+
+/*    // Step 2: Simulate LaserScan */
+/*    std::normal_distribution<double> noise_distribution(0.0, 0.01);  // Mean 0, Stddev 0.1 */
+
+/*    for (int i = 0; i < num_readings; ++i) { */
+/*        double angle = fake_scan->angle_min + i * fake_scan->angle_increment; */
+/*        double min_distance = fake_scan->range_max; */
+
+/*        for (const auto &obstacle : obstacles_in_fcu) { */
+/*            double obstacle_x = obstacle.first; */
+/*            double obstacle_y = obstacle.second; */
+
+/*            double direction_x = cos(angle); */
+/*            double direction_y = sin(angle); */
+
+/*            double dx = obstacle_x - robot_x_; */
+/*            double dy = obstacle_y - robot_y_; */
+
+/*            double projection = direction_x * dx + direction_y * dy; */
+/*            if (projection > 0) { */
+/*                double closest_x               = robot_x_ + projection * direction_x; */
+/*                double closest_y               = robot_y_ + projection * direction_y; */
+/*                double dist_to_obstacle_center = sqrt((closest_x - obstacle_x) * (closest_x - obstacle_x) + */
+/*                                                      (closest_y - obstacle_y) * (closest_y - obstacle_y)); */
+/*                if (dist_to_obstacle_center <= obstacle_radius) { */
+/*                    double dist_to_surface = projection - sqrt(obstacle_radius * obstacle_radius - dist_to_obstacle_center * dist_to_obstacle_center); */
+/*                    min_distance           = std::min(min_distance, dist_to_surface); */
+/*                } */
+/*            } */
+/*        } */
+
+/*        double noisy_distance = min_distance + noise_distribution(rng_); */
+/*        if (noisy_distance < fake_scan->range_min) { */
+/*            noisy_distance = fake_scan->range_min; */
+/*        } else if (noisy_distance > fake_scan->range_max) { */
+/*            noisy_distance = fake_scan->range_max; */
+/*        } */
+
+/*        fake_scan->ranges[i] = noisy_distance; */
+/*    } */
+
+/*    // Step 3: Publish the LaserScan */
+/*    fake_scan_pub_.publish(*fake_scan); */
+/*    laserScanCallback(fake_scan); */
+/*    publishObstacleMarkers(_obstacles_x, _obstacles_y, _obstacles_size); */
+/*} */
+/*//} */
+
+/*void mapCallback//{ */
   void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
     // Map metadata
     float               resolution = msg->info.resolution;  // Map resolution in meters/cell
@@ -477,6 +684,37 @@ public:
     clusters_pub_1.publish(clusters);
   }
   //}
+ 
+
+void transformObstacles(
+    const std::vector<std::pair<double, double>>& obstacles,
+    std::vector<std::pair<double, double>>& transformed_obstacles,
+    double tx, double ty, double theta) {
+    
+    // Precompute cos and sin of the rotation angle
+    double cos_theta = std::cos(theta);
+    double sin_theta = std::sin(theta);
+
+    // Clear the output vector
+    transformed_obstacles.clear();
+
+    // Transform each obstacle
+    for (const auto& obstacle : obstacles) {
+        // Original coordinates in the world frame
+        double x_world = obstacle.first;
+        double y_world = obstacle.second;
+
+        // Apply rotation and translation
+        double x_transformed = cos_theta * x_world - sin_theta * y_world + tx;
+        double y_transformed = sin_theta * x_world + cos_theta * y_world + ty;
+
+        // Store the transformed coordinates
+        transformed_obstacles.emplace_back(x_transformed, y_transformed);
+    }
+}
+
+  //
+      
 };
 //}
 
@@ -498,7 +736,6 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "laser_scan_clustering_" + UAV_NAME);
   ros::NodeHandle  nh;
   LaserScanCluster laser_scan_cluster(nh, UAV_NAME);
-
   ros::spin();
   return 0;
 }
