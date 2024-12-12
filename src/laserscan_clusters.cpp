@@ -17,6 +17,10 @@
 #include <random>
 #include <nav_msgs/OccupancyGrid.h>
 #include <vector>
+
+/* TODO: it considers only the position of the robot not the orientation */
+
+
 /*LaserScanCluster Class //{ */
 class LaserScanCluster {
   ros::NodeHandle nh_;
