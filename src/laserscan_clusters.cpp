@@ -23,46 +23,47 @@
 
 /*LaserScanCluster Class //{ */
 class LaserScanCluster {
-  ros::NodeHandle nh_;
-  ros::Subscriber laser_scan_sub_;
-  ros::Subscriber map_sub_;
-  ros::Publisher  clusters_pub_;
-  ros::Publisher  clusters_pub_1;
-  ros::Publisher  fake_scan_pub_;
-  ros::Publisher  obstacles_array_pub_;
-  ros::Timer      timer_;
-  std::string     UAV_NAME_;
-  std::mt19937    rng_;  // Random number generator
-  double          robot_x_ = 0.0;
-  double          robot_x1_ = 0.0;
-  double          robot_y_ = 0.0;
-  double          robot_y1_ = 0.0;
-  double roll_ = 0.0;
-  double pitch_ = 0.0;
-  double robot_yaw_ = 0.0;
-  double          _cluster_tolerance_;
-  int             _cluster_min_size_;
-  int             _cluster_max_size_;
-  bool            _simulation_ = true;
-  ros::Subscriber robot_position_sub_;
-  ros::Subscriber robot_heding_sub_;
-  ros::Subscriber robot_position_sub_1;
-  ros::Time       last_time_received_msg_;
+  ros::NodeHandle      nh_;
+  ros::Subscriber      laser_scan_sub_;
+  ros::Subscriber      map_sub_;
+  ros::Publisher       clusters_pub_;
+  ros::Publisher       clusters_pub_1;
+  ros::Publisher       fake_scan_pub_;
+  ros::Publisher       obstacles_array_pub_;
+  ros::Timer           timer_;
+  std::string          UAV_NAME_;
+  std::mt19937         rng_;  // Random number generator
+  double               robot_x_   = 0.0;
+  double               robot_x1_  = 0.0;
+  double               robot_y_   = 0.0;
+  double               robot_y1_  = 0.0;
+  double               roll_      = 0.0;
+  double               pitch_     = 0.0;
+  double               robot_yaw_ = 0.0;
+  double               _cluster_tolerance_;
+  int                  _cluster_min_size_;
+  int                  _cluster_max_size_;
+  bool                 _simulation_ = true;
+  ros::Subscriber      robot_position_sub_;
+  ros::Subscriber      robot_heding_sub_;
+  ros::Subscriber      robot_position_sub_1;
+  ros::Time            last_time_received_msg_;
   mrs_lib::Transformer transformer_;
+
 public:
   std::vector<double> _obstacles_x, _obstacles_y;
   double              _obstacles_size;
 
   /*LaserScanCluster init//{ */
   LaserScanCluster(ros::NodeHandle &nh, const std::string &UAV_NAME) : nh_(nh), UAV_NAME_(UAV_NAME), rng_(std::random_device{}()) {
-    clusters_pub_       = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_", 1);
-    
-    clusters_pub_1       = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_1", 1);
+    clusters_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_", 1);
+
+    clusters_pub_1 = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/clusters_1", 1);
 
     /* fake_scan_pub_      = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan_", 1); */
     obstacles_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/" + UAV_NAME + "/rplidar/obstacles_", 1);
 
-    fake_scan_pub_      = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan", 1);
+    fake_scan_pub_ = nh_.advertise<sensor_msgs::LaserScan>("/" + UAV_NAME + "/rplidar/scan", 1);
 
     /* robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/rbl_controller/position_vis", 1, &LaserScanCluster::robotPositionCallback1, this); */
 
@@ -70,7 +71,7 @@ public:
 
     robot_position_sub_ = nh_.subscribe("/" + UAV_NAME + "/estimation_manager/odom_main", 1, &LaserScanCluster::robotPositionCallback1, this);
 
-/*     robot_position_sub_1 = nh_.subscribe("/" + UAV_NAME + "/estimation_manager/odom_main", 1, &LaserScanCluster::robotPositionCallback, this); */
+    /*     robot_position_sub_1 = nh_.subscribe("/" + UAV_NAME + "/estimation_manager/odom_main", 1, &LaserScanCluster::robotPositionCallback, this); */
 
     if (_simulation_) {
       laser_scan_sub_ = nh_.subscribe("/" + UAV_NAME_ + "/scan", 1, &LaserScanCluster::laserScanCallback, this);
@@ -94,7 +95,6 @@ public:
     param_loader.loadParam("clustering/min_size", _cluster_min_size_);
     param_loader.loadParam("clustering/max_size", _cluster_max_size_);
     param_loader.loadParam("simulation", _simulation_);
-
   }
   //}
 
@@ -137,15 +137,10 @@ public:
     if (_simulation_) {
       robot_x_ = msg->pose.pose.position.x;
       robot_y_ = msg->pose.pose.position.y;
-      tf::Quaternion quat(
-        msg->pose.pose.orientation.x,
-        msg->pose.pose.orientation.y,
-        msg->pose.pose.orientation.z,
-        msg->pose.pose.orientation.w
-      );
+      tf::Quaternion quat(msg->pose.pose.orientation.x, msg->pose.pose.orientation.y, msg->pose.pose.orientation.z, msg->pose.pose.orientation.w);
       // Convert quaternion to roll, pitch, and yaw
       tf::Matrix3x3(quat).getRPY(roll_, pitch_, robot_yaw_);
-      }
+    }
   }
   //}
 
@@ -169,7 +164,7 @@ public:
     // Create a filtered point cloud based on distance
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_distance(new pcl::PointCloud<pcl::PointXYZ>);
     for (const auto &point : cloud_filtered->points) {
-      double distance = sqrt(point.x * point.x + point.y * point.y + point.z * point.z);
+      /* double distance = sqrt(point.x * point.x + point.y * point.y + point.z * point.z); */
       /* if (distance <= 8.0) { */
       /* pcl::PointXYZ offset_point; */
       /* offset_point.x = point.x + 10;  // Apply x offset */
@@ -351,51 +346,49 @@ public:
   //}
 
   /* createObstaclesMarker //{ */
- void publishObstacleMarkers(const std::vector<double>& obstacles_x, 
-                                const std::vector<double>& obstacles_y, 
-                                double obstacle_size) {
-        visualization_msgs::MarkerArray marker_array;
-        for (size_t i = 0; i < obstacles_x.size(); ++i) {
-            visualization_msgs::Marker marker;
-            marker.header.frame_id = UAV_NAME_ + "/world_origin";
-            marker.header.stamp = ros::Time::now();
-            marker.ns = "obstacle_cylinders";
-            marker.id = i; // Unique ID for each marker
-            marker.type = visualization_msgs::Marker::CYLINDER;
-            marker.action = visualization_msgs::Marker::ADD;
-            
-            // Set position and scale
-            marker.pose.position.x = obstacles_x[i];
-            marker.pose.position.y = obstacles_y[i];
-            marker.pose.position.z = 0.0; // Center height
-            marker.pose.orientation.x = 0.0;
-            marker.pose.orientation.y = 0.0;
-            marker.pose.orientation.z = 0.0;
-            marker.pose.orientation.w = 1.0;
+  void publishObstacleMarkers(const std::vector<double> &obstacles_x, const std::vector<double> &obstacles_y, double obstacle_size) {
+    visualization_msgs::MarkerArray marker_array;
+    for (size_t i = 0; i < obstacles_x.size(); ++i) {
+      visualization_msgs::Marker marker;
+      marker.header.frame_id = UAV_NAME_ + "/world_origin";
+      marker.header.stamp    = ros::Time::now();
+      marker.ns              = "obstacle_cylinders";
+      marker.id              = i;  // Unique ID for each marker
+      marker.type            = visualization_msgs::Marker::CYLINDER;
+      marker.action          = visualization_msgs::Marker::ADD;
 
-            marker.scale.x = obstacle_size*2; // Diameter in X
-            marker.scale.y = obstacle_size*2; // Diameter in Y
-            marker.scale.z = obstacle_size; // Height
+      // Set position and scale
+      marker.pose.position.x    = obstacles_x[i];
+      marker.pose.position.y    = obstacles_y[i];
+      marker.pose.position.z    = 0.0;  // Center height
+      marker.pose.orientation.x = 0.0;
+      marker.pose.orientation.y = 0.0;
+      marker.pose.orientation.z = 0.0;
+      marker.pose.orientation.w = 1.0;
 
-            // Set color
-            marker.color.r = 1.0; // Red
-            marker.color.g = 0.0;
-            marker.color.b = 0.0;
-            marker.color.a = 0.8; // Semi-transparent
+      marker.scale.x = obstacle_size * 2;  // Diameter in X
+      marker.scale.y = obstacle_size * 2;  // Diameter in Y
+      marker.scale.z = obstacle_size;      // Height
 
-            marker_array.markers.push_back(marker);
-        }
+      // Set color
+      marker.color.r = 1.0;  // Red
+      marker.color.g = 0.0;
+      marker.color.b = 0.0;
+      marker.color.a = 0.8;  // Semi-transparent
 
-        // Publish the marker array
-        obstacles_array_pub_.publish(marker_array);
+      marker_array.markers.push_back(marker);
     }
+
+    // Publish the marker array
+    obstacles_array_pub_.publish(marker_array);
+  }
   //}
 
   /*void timerCallback //{ */
   void timerCallback(const ros::TimerEvent &) {
     // Create a fake LaserScan message
     sensor_msgs::LaserScan::Ptr fake_scan(new sensor_msgs::LaserScan);
-    fake_scan->header.stamp    = ros::Time::now();
+    fake_scan->header.stamp = ros::Time::now();
     /* fake_scan->header.frame_id = UAV_NAME_ + "/world_origin"; */
     fake_scan->header.frame_id = UAV_NAME_ + "/world_origin";
 
@@ -416,12 +409,9 @@ public:
     for (size_t i = 0; i < _obstacles_x.size(); ++i) {
       obstacles.emplace_back(_obstacles_x[i], _obstacles_y[i]);
     }
-    
 
 
-    /* transformObstacles(obstacles0, obstacles, robot_x_,robot_y_,0); */ 
-
-
+    /* transformObstacles(obstacles0, obstacles, robot_x_,robot_y_,0); */
 
 
     // Random noise generator
@@ -447,11 +437,12 @@ public:
         /* double direction_x = cos(angle+robot_yaw_); */
         /* double direction_y = sin(angle+robot_yaw_); */
         // Calculate the vector from the robot to the obstacle
-        double dx = obstacle_x - robot_x_;
-        double dy = obstacle_y - robot_y_;
+        double dx        = obstacle_x - robot_x_;
+        double dy        = obstacle_y - robot_y_;
+        double distance1 = sqrt(dx * dx + dy * dy);
         /* double dx = (obstacle_x - robot_x_)*cos(robot_yaw_) + (obstacle_x - robot_x_)*sin(robot_yaw_) ; */
         /* double dy = -(obstacle_x - robot_x_)*sin(robot_yaw_) + (obstacle_x - robot_x_)*cos(robot_yaw_) ; */
-        
+
         // Project the vector onto the direction of the LaserSca
         double projection = direction_x * dx + direction_y * dy;
         if (projection > 0) {
@@ -463,20 +454,24 @@ public:
             double dist_to_surface = projection - sqrt(obstacle_radius * obstacle_radius - dist_to_obstacle_center * dist_to_obstacle_center);
             min_distance           = std::min(min_distance, dist_to_surface);
           }
+          /* if (dist_to_obstacle_center > min_distance) { */
+          /*   min_distance = 100000; */
+          /* } */
         }
       }
 
-      
-      // Add noise to the distance value
-      double noisy_distance = min_distance + noise_distribution(rng_);
-      // Ensure the range is within valid bounds
-      if (noisy_distance < fake_scan->range_min) {
-        noisy_distance = fake_scan->range_min;
-      } else if (noisy_distance > fake_scan->range_max) {
-        noisy_distance = fake_scan->range_max;
-      }
 
-      fake_scan->ranges[i] = noisy_distance;
+      // Add noise to the distance value
+      /* double noisy_distance = min_distance + noise_distribution(rng_); */
+      /* // Ensure the range is within valid bounds */
+      /* if (noisy_distance < fake_scan->range_min) { */
+      /*   noisy_distance = fake_scan->range_min; */
+      /* } else if (noisy_distance > fake_scan->range_max) { */
+      /*   noisy_distance = fake_scan->range_max; */
+      /* } */
+
+      /* fake_scan->ranges[i] = noisy_distance; */
+      fake_scan->ranges[i] = min_distance;
     }
 
     // Publish the fake LaserScan message
@@ -487,101 +482,101 @@ public:
   }
   //}
 
-/*/1*void timerCallback //{ *1/ */
-/*void timerCallback(const ros::TimerEvent &) { */
-/*    // Create a fake LaserScan message */
-/*    sensor_msgs::LaserScan::Ptr fake_scan(new sensor_msgs::LaserScan); */
-/*    fake_scan->header.stamp    = ros::Time::now(); */
-/*    fake_scan->header.frame_id = UAV_NAME_ + "/fcu"; */
+  /*/1*void timerCallback //{ *1/ */
+  /*void timerCallback(const ros::TimerEvent &) { */
+  /*    // Create a fake LaserScan message */
+  /*    sensor_msgs::LaserScan::Ptr fake_scan(new sensor_msgs::LaserScan); */
+  /*    fake_scan->header.stamp    = ros::Time::now(); */
+  /*    fake_scan->header.frame_id = UAV_NAME_ + "/fcu"; */
 
-/*    fake_scan->angle_min       = 0.0; */
-/*    fake_scan->angle_max       = 6.28;  // 2 * pi */
-/*    fake_scan->angle_increment = 0.225 / 180 * 3.1415; */
-/*    fake_scan->time_increment  = 0.0; */
-/*    fake_scan->scan_time       = 0.1; */
-/*    fake_scan->range_min       = 0.0; */
-/*    fake_scan->range_max       = 20.0;  // Set your desired max range */
+  /*    fake_scan->angle_min       = 0.0; */
+  /*    fake_scan->angle_max       = 6.28;  // 2 * pi */
+  /*    fake_scan->angle_increment = 0.225 / 180 * 3.1415; */
+  /*    fake_scan->time_increment  = 0.0; */
+  /*    fake_scan->scan_time       = 0.1; */
+  /*    fake_scan->range_min       = 0.0; */
+  /*    fake_scan->range_max       = 20.0;  // Set your desired max range */
 
-/*    int num_readings = static_cast<int>((fake_scan->angle_max - fake_scan->angle_min) / fake_scan->angle_increment); */
-/*    fake_scan->ranges.resize(num_readings); */
+  /*    int num_readings = static_cast<int>((fake_scan->angle_max - fake_scan->angle_min) / fake_scan->angle_increment); */
+  /*    fake_scan->ranges.resize(num_readings); */
 
-/*    double obstacle_radius = _obstacles_size; */
+  /*    double obstacle_radius = _obstacles_size; */
 
-/*    // Step 1: Transform obstacles from world_origin to fcu */
-/*    std::vector<std::pair<double, double>> obstacles_in_fcu; */
-/*    try { */
-/*        // Create a TF buffer and listener */
-/*        tf2_ros::Buffer tfBuffer; */
-/*        tf2_ros::TransformListener tfListener(tfBuffer); */
+  /*    // Step 1: Transform obstacles from world_origin to fcu */
+  /*    std::vector<std::pair<double, double>> obstacles_in_fcu; */
+  /*    try { */
+  /*        // Create a TF buffer and listener */
+  /*        tf2_ros::Buffer tfBuffer; */
+  /*        tf2_ros::TransformListener tfListener(tfBuffer); */
 
-/*        // Get the transform from world_origin to fcu */
-/*        geometry_msgs::TransformStamped transformStamped; */
-/*        transformStamped = tfBuffer.lookupTransform(UAV_NAME_ + "/fcu", UAV_NAME_ + "/world_origin", ros::Time(0)); */
+  /*        // Get the transform from world_origin to fcu */
+  /*        geometry_msgs::TransformStamped transformStamped; */
+  /*        transformStamped = tfBuffer.lookupTransform(UAV_NAME_ + "/fcu", UAV_NAME_ + "/world_origin", ros::Time(0)); */
 
-/*        // Transform each obstacle to fcu frame */
-/*        for (size_t i = 0; i < _obstacles_x.size(); ++i) { */
-/*            geometry_msgs::PointStamped obstacle_world, obstacle_fcu; */
-/*            obstacle_world.header.frame_id = UAV_NAME_ + "/world_origin"; */
-/*            obstacle_world.point.x         = _obstacles_x[i]; */
-/*            obstacle_world.point.y         = _obstacles_y[i]; */
-/*            obstacle_world.point.z         = 0.0; */
+  /*        // Transform each obstacle to fcu frame */
+  /*        for (size_t i = 0; i < _obstacles_x.size(); ++i) { */
+  /*            geometry_msgs::PointStamped obstacle_world, obstacle_fcu; */
+  /*            obstacle_world.header.frame_id = UAV_NAME_ + "/world_origin"; */
+  /*            obstacle_world.point.x         = _obstacles_x[i]; */
+  /*            obstacle_world.point.y         = _obstacles_y[i]; */
+  /*            obstacle_world.point.z         = 0.0; */
 
-/*            tf2::doTransform(obstacle_world, obstacle_fcu, transformStamped); */
-/*            obstacles_in_fcu.emplace_back(obstacle_fcu.point.x, obstacle_fcu.point.y); */
-/*        } */
-/*    } catch (tf2::TransformException &ex) { */
-/*        ROS_WARN("Failed to transform obstacles to fcu frame: %s", ex.what()); */
-/*        return; // Exit if transform is not available */
-/*    } */
+  /*            tf2::doTransform(obstacle_world, obstacle_fcu, transformStamped); */
+  /*            obstacles_in_fcu.emplace_back(obstacle_fcu.point.x, obstacle_fcu.point.y); */
+  /*        } */
+  /*    } catch (tf2::TransformException &ex) { */
+  /*        ROS_WARN("Failed to transform obstacles to fcu frame: %s", ex.what()); */
+  /*        return; // Exit if transform is not available */
+  /*    } */
 
-/*    // Step 2: Simulate LaserScan */
-/*    std::normal_distribution<double> noise_distribution(0.0, 0.01);  // Mean 0, Stddev 0.1 */
+  /*    // Step 2: Simulate LaserScan */
+  /*    std::normal_distribution<double> noise_distribution(0.0, 0.01);  // Mean 0, Stddev 0.1 */
 
-/*    for (int i = 0; i < num_readings; ++i) { */
-/*        double angle = fake_scan->angle_min + i * fake_scan->angle_increment; */
-/*        double min_distance = fake_scan->range_max; */
+  /*    for (int i = 0; i < num_readings; ++i) { */
+  /*        double angle = fake_scan->angle_min + i * fake_scan->angle_increment; */
+  /*        double min_distance = fake_scan->range_max; */
 
-/*        for (const auto &obstacle : obstacles_in_fcu) { */
-/*            double obstacle_x = obstacle.first; */
-/*            double obstacle_y = obstacle.second; */
+  /*        for (const auto &obstacle : obstacles_in_fcu) { */
+  /*            double obstacle_x = obstacle.first; */
+  /*            double obstacle_y = obstacle.second; */
 
-/*            double direction_x = cos(angle); */
-/*            double direction_y = sin(angle); */
+  /*            double direction_x = cos(angle); */
+  /*            double direction_y = sin(angle); */
 
-/*            double dx = obstacle_x - robot_x_; */
-/*            double dy = obstacle_y - robot_y_; */
+  /*            double dx = obstacle_x - robot_x_; */
+  /*            double dy = obstacle_y - robot_y_; */
 
-/*            double projection = direction_x * dx + direction_y * dy; */
-/*            if (projection > 0) { */
-/*                double closest_x               = robot_x_ + projection * direction_x; */
-/*                double closest_y               = robot_y_ + projection * direction_y; */
-/*                double dist_to_obstacle_center = sqrt((closest_x - obstacle_x) * (closest_x - obstacle_x) + */
-/*                                                      (closest_y - obstacle_y) * (closest_y - obstacle_y)); */
-/*                if (dist_to_obstacle_center <= obstacle_radius) { */
-/*                    double dist_to_surface = projection - sqrt(obstacle_radius * obstacle_radius - dist_to_obstacle_center * dist_to_obstacle_center); */
-/*                    min_distance           = std::min(min_distance, dist_to_surface); */
-/*                } */
-/*            } */
-/*        } */
+  /*            double projection = direction_x * dx + direction_y * dy; */
+  /*            if (projection > 0) { */
+  /*                double closest_x               = robot_x_ + projection * direction_x; */
+  /*                double closest_y               = robot_y_ + projection * direction_y; */
+  /*                double dist_to_obstacle_center = sqrt((closest_x - obstacle_x) * (closest_x - obstacle_x) + */
+  /*                                                      (closest_y - obstacle_y) * (closest_y - obstacle_y)); */
+  /*                if (dist_to_obstacle_center <= obstacle_radius) { */
+  /*                    double dist_to_surface = projection - sqrt(obstacle_radius * obstacle_radius - dist_to_obstacle_center * dist_to_obstacle_center); */
+  /*                    min_distance           = std::min(min_distance, dist_to_surface); */
+  /*                } */
+  /*            } */
+  /*        } */
 
-/*        double noisy_distance = min_distance + noise_distribution(rng_); */
-/*        if (noisy_distance < fake_scan->range_min) { */
-/*            noisy_distance = fake_scan->range_min; */
-/*        } else if (noisy_distance > fake_scan->range_max) { */
-/*            noisy_distance = fake_scan->range_max; */
-/*        } */
+  /*        double noisy_distance = min_distance + noise_distribution(rng_); */
+  /*        if (noisy_distance < fake_scan->range_min) { */
+  /*            noisy_distance = fake_scan->range_min; */
+  /*        } else if (noisy_distance > fake_scan->range_max) { */
+  /*            noisy_distance = fake_scan->range_max; */
+  /*        } */
 
-/*        fake_scan->ranges[i] = noisy_distance; */
-/*    } */
+  /*        fake_scan->ranges[i] = noisy_distance; */
+  /*    } */
 
-/*    // Step 3: Publish the LaserScan */
-/*    fake_scan_pub_.publish(*fake_scan); */
-/*    laserScanCallback(fake_scan); */
-/*    publishObstacleMarkers(_obstacles_x, _obstacles_y, _obstacles_size); */
-/*} */
-/*//} */
+  /*    // Step 3: Publish the LaserScan */
+  /*    fake_scan_pub_.publish(*fake_scan); */
+  /*    laserScanCallback(fake_scan); */
+  /*    publishObstacleMarkers(_obstacles_x, _obstacles_y, _obstacles_size); */
+  /*} */
+  /*//} */
 
-/*void mapCallback//{ */
+  /*void mapCallback//{ */
   void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg) {
     // Map metadata
     float               resolution = msg->info.resolution;  // Map resolution in meters/cell
@@ -602,7 +597,7 @@ public:
         // Convert grid coordinates to world coordinates
         float x_world = origin.position.x + x_index * resolution;
         float y_world = origin.position.y + y_index * resolution;
-/* TOADD this statement to reduce the number of obstacles */
+        /* TOADD this statement to reduce the number of obstacles */
         /* // Store the obstacle's world position */
         obstacle_positions.push_back(std::make_pair(x_world, y_world));
       }
@@ -646,8 +641,8 @@ public:
     for (const auto &point : cloud_filtered->points) {
       /* double distance = std::sqrt(point.x * point.x + point.y * point.y); */
       /* double distance = std::sqrt(pow(point.x-robot_x1_,2) + pow(point.y-robot_y1_,2)); */
-      /* if (distance <= 8.0) { */
-        cloud_filtered_distance->points.push_back(point);
+      /* if (distance <= 14.0) { */
+      /*   cloud_filtered_distance->points.push_back(point); */
       /* } */
     }
 
@@ -688,13 +683,11 @@ public:
     clusters_pub_1.publish(clusters);
   }
   //}
- 
 
-void transformObstacles(
-    const std::vector<std::pair<double, double>>& obstacles,
-    std::vector<std::pair<double, double>>& transformed_obstacles,
-    double tx, double ty, double theta) {
-    
+
+  void transformObstacles(const std::vector<std::pair<double, double>> &obstacles, std::vector<std::pair<double, double>> &transformed_obstacles, double tx,
+                          double ty, double theta) {
+
     // Precompute cos and sin of the rotation angle
     double cos_theta = std::cos(theta);
     double sin_theta = std::sin(theta);
@@ -703,22 +696,21 @@ void transformObstacles(
     transformed_obstacles.clear();
 
     // Transform each obstacle
-    for (const auto& obstacle : obstacles) {
-        // Original coordinates in the world frame
-        double x_world = obstacle.first;
-        double y_world = obstacle.second;
+    for (const auto &obstacle : obstacles) {
+      // Original coordinates in the world frame
+      double x_world = obstacle.first;
+      double y_world = obstacle.second;
 
-        // Apply rotation and translation
-        double x_transformed = cos_theta * x_world - sin_theta * y_world + tx;
-        double y_transformed = sin_theta * x_world + cos_theta * y_world + ty;
+      // Apply rotation and translation
+      double x_transformed = cos_theta * x_world - sin_theta * y_world + tx;
+      double y_transformed = sin_theta * x_world + cos_theta * y_world + ty;
 
-        // Store the transformed coordinates
-        transformed_obstacles.emplace_back(x_transformed, y_transformed);
+      // Store the transformed coordinates
+      transformed_obstacles.emplace_back(x_transformed, y_transformed);
     }
-}
+  }
 
   //
-      
 };
 //}
 
