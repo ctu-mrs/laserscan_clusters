@@ -2,12 +2,12 @@ import random
 import math
 
 # Parameters
-num_obstacles = 200
-x_min = -10.0
-x_max = 10.0
+num_obstacles = 300
+x_min = -20.0
+x_max = 20.0
 y_min = -32.0
 y_max = 32.0
-min_distance = 1.5
+min_distance = 2.0
 
 # Function to check if the new position is at least `min_distance` away from existing ones
 def is_valid_position(new_x, new_y, obstacles):
